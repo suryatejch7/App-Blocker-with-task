@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Habit Tracker</string>
+    <string name="accessibility_service_description">This service is required to block distracting apps and websites when tasks are pending. It monitors app launches and enforces restrictions to help you stay focused.</string>
+</resources>

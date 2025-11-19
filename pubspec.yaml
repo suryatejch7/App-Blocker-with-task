@@ -1,0 +1,39 @@
+name: habit_tracker_flutter
+description: Habit Tracker Flutter application (converted from a non-Flutter frontend).
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=2.18.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.5
+  provider: ^6.0.5
+  shared_preferences: ^2.0.15
+  http: ^1.6.0
+  intl: ^0.20.2
+  go_router: ^17.0.0
+  flutter_vector_icons: ^2.0.0
+  uuid: ^4.5.2
+  supabase_flutter: ^2.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/SpaceMono-Regular.ttf
+    - assets/images/adaptive-icon.png
+    - assets/images/app-image.png
+    - assets/images/favicon.png
+    - assets/images/icon.png
+    - assets/images/partial-react-logo.png
+    - assets/images/react-logo.png
+    - assets/images/react-logo@2x.png
+    - assets/images/react-logo@3x.png
+    - assets/images/splash-image.png
