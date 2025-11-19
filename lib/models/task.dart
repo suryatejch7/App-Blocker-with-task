@@ -56,14 +56,16 @@ class Task {
         'id': id,
         'title': title,
         'description': description,
-        'start_time': startTime.toIso8601String(),
-        'end_time': endTime.toIso8601String(),
+        // Store as UTC in Supabase to avoid timezone drift. The app always
+        // converts back to local time (IST) on read in fromJson.
+        'start_time': startTime.toUtc().toIso8601String(),
+        'end_time': endTime.toUtc().toIso8601String(),
         'completed': completed,
         'repeat_settings': repeatSettings,
         'restriction_mode': restrictionMode,
         'custom_restricted_apps': customRestrictedApps,
         'custom_restricted_websites': customRestrictedWebsites,
-        'completed_at': completedAt?.toIso8601String(),
+        'completed_at': completedAt?.toUtc().toIso8601String(),
       };
 
   static Task fromJson(Map<String, dynamic> j) => Task(
