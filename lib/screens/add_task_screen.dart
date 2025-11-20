@@ -278,6 +278,12 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
   void _saveTask() {
     if (_formKey.currentState!.validate()) {
+      debugPrint('💾 AddTaskScreen._saveTask - Saving task');
+      debugPrint('   📅 Start time: $_startTime (${_startTime.timeZoneName})');
+      debugPrint('   📅 End time: $_endTime (${_endTime.timeZoneName})');
+      debugPrint('   🔢 Start time millis: ${_startTime.millisecondsSinceEpoch}');
+      debugPrint('   🔢 End time millis: ${_endTime.millisecondsSinceEpoch}');
+      
       final provider = Provider.of<TaskProvider>(context, listen: false);
       final task = Task(
         id: widget.existingTask?.id ?? const Uuid().v4(),
@@ -480,32 +486,58 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         backgroundColor: AppTheme.black,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppTheme.white),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(isEditing ? 'Edit Task' : 'New Task'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: TextButton(
-              onPressed: _saveTask,
-              style: TextButton.styleFrom(
-                backgroundColor: AppTheme.blue,
-                foregroundColor: AppTheme.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(999),
+        toolbarHeight: 80,
+        automaticallyImplyLeading: false,
+        flexibleSpace: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: AppTheme.white),
+                  onPressed: () => context.pop(),
                 ),
-              ),
-              child: const Text(
-                'Save',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
+                Expanded(
+                  child: Text(
+                    isEditing ? 'Edit Task' : 'New Task',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppTheme.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: TextButton(
+                    onPressed: _saveTask,
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppTheme.blue,
+                      foregroundColor: AppTheme.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    child: const Text(
+                      'Save',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(2),
+          child: Container(
+            height: 1.5,
+            color: AppTheme.lightGray.withOpacity(0.65),
+          ),
+        ),
       ),
       body: Form(
         key: _formKey,

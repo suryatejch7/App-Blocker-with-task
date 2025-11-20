@@ -21,56 +21,95 @@ class _HomeTabsState extends State<HomeTabs> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.black,
-      appBar: AppBar(
+  appBar: AppBar(
         backgroundColor: AppTheme.black,
         elevation: 0,
         centerTitle: false,
-        titleSpacing: 16,
-        title: _selectedIndex == 0
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'My Tasks',
-                    style: Theme.of(context).textTheme.displaySmall,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now()),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.white.withOpacity(0.6),
+        toolbarHeight: 100, // Increased height for better spacing
+        titleSpacing: 0,
+        automaticallyImplyLeading: false,
+  flexibleSpace: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _selectedIndex == 0
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'My Tasks',
+                              style: const TextStyle(
+                                color: AppTheme.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              DateFormat('EEEE, MMMM d, yyyy')
+                                  .format(DateTime.now()),
+                              style: TextStyle(
+                                color: AppTheme.white.withOpacity(0.6),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Restrictions',
+                              style: const TextStyle(
+                                color: AppTheme.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Default restriction list',
+                              style: TextStyle(
+                                color: AppTheme.white.withOpacity(0.6),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
                         ),
-                  ),
-                ],
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Restrictions',
-                    style: Theme.of(context).textTheme.displaySmall,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Default restriction list',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(
-                          color: AppTheme.white.withOpacity(0.6),
-                        ),
-                  ),
-                ],
-              ),
-        actions: _selectedIndex == 0
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  onPressed: () => context.push('/settings'),
                 ),
-                const SizedBox(width: 8),
-              ]
-            : const [],
+                if (_selectedIndex == 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.settings_outlined,
+                        color: AppTheme.white,
+                        size: 26,
+                      ),
+                      onPressed: () => context.push('/settings'),
+                      splashColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        // Thin divider under the app header to visually separate it from content
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(2),
+          child: Container(
+            height: 1.5,
+            color: AppTheme.lightGray.withOpacity(0.65),
+          ),
+        ),
       ),
       body: IndexedStack(
         index: _selectedIndex,
@@ -79,19 +118,27 @@ class _HomeTabsState extends State<HomeTabs> {
           _RestrictionsTab(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.task_alt),
-            label: 'Tasks',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.block),
-            label: 'Restrictions',
-          ),
-        ],
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          splashFactory: NoSplash.splashFactory,
+          hoverColor: Colors.transparent,
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.task_alt),
+              label: 'Tasks',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.block),
+              label: 'Restrictions',
+            ),
+          ],
+        ),
       ),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
@@ -164,7 +211,7 @@ class _TasksTab extends StatelessWidget {
           );
         }
 
-        return ListView(
+        final listView = ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           children: [
             if (todayTasks.isNotEmpty) ...[
@@ -242,6 +289,47 @@ class _TasksTab extends StatelessWidget {
             ],
           ],
         );
+
+        if (todayTasks.isEmpty && futureTaskEntries.isEmpty && completedTasks.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: () => taskProvider.refresh(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height - 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.task_alt,
+                          size: 100,
+                          color: AppTheme.blue.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No Tasks Yet',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Tap + to create your first task',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyLarge
+                              ?.copyWith(color: AppTheme.white.withOpacity(0.6)),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(onRefresh: () => taskProvider.refresh(), child: listView);
       },
     );
   }
@@ -259,12 +347,15 @@ class _TaskCard extends StatelessWidget {
     final isActive = task.isActive;
     final isOverdue = task.isOverdue;
 
+    final borderColor = isOverdue ? Colors.red : AppTheme.lightGray;
+    final borderWidth = isOverdue ? 1.6 : 1.0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppTheme.darkGray,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.lightGray),
+        border: Border.all(color: borderColor, width: borderWidth),
       ),
       child: InkWell(
         onTap: () => context.push('/edit', extra: task),
@@ -379,7 +470,7 @@ class _TaskCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     _TaskChip(
                       label: 'Active',
-                      color: AppTheme.blue,
+                      color: AppTheme.yellow,
                     ),
                   ],
                 ],
@@ -516,38 +607,54 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
             const SizedBox(height: 8),
             Expanded(
               child: items.isEmpty
-                  ? Center(
-                      child: Text(
-                        isApps
-                            ? 'No apps in default list'
-                            : 'No websites in default list',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
-                              color: AppTheme.white.withOpacity(0.6),
+                  ? RefreshIndicator(
+                      onRefresh: () => provider.refresh(),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height - 200,
+                            child: Center(
+                              child: Text(
+                                isApps
+                                    ? 'No apps in default list'
+                                    : 'No websites in default list',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: AppTheme.white.withOpacity(0.6),
+                                    ),
+                              ),
                             ),
+                          )
+                        ],
                       ),
                     )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      itemCount: items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final value = items[index];
-                        return _RestrictionItemCard(
-                          isApp: isApps,
-                          value: value,
-                          onRemove: () {
-                            if (isApps) {
-                              provider.removeApp(value);
-                            } else {
-                              provider.removeWebsite(value);
-                            }
-                          },
-                        );
-                      },
+                  : RefreshIndicator(
+                      onRefresh: () => provider.refresh(),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final value = items[index];
+                          return _RestrictionItemCard(
+                            isApp: isApps,
+                            value: value,
+                            onRemove: () {
+                              if (isApps) {
+                                provider.removeApp(value);
+                              } else {
+                                provider.removeWebsite(value);
+                              }
+                            },
+                          );
+                        },
+                      ),
                     ),
             ),
             Padding(

@@ -166,60 +166,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Restrictions Management
-                Text(
-                  'RESTRICTIONS',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.blue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.apps, color: AppTheme.yellow),
-                        title: const Text('Manage Default Apps'),
-                        subtitle:
-                            const Text('Set which apps are blocked by default'),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () => context.push('/restrictions'),
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading:
-                            const Icon(Icons.language, color: AppTheme.yellow),
-                        title: const Text('Manage Default Websites'),
-                        subtitle: const Text(
-                            'Set which websites are blocked by default'),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () => context.push('/restrictions'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Danger Zone
-                Text(
-                  'DANGER ZONE',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.warning, color: Colors.red),
-                    title: const Text('Clear All Data'),
-                    subtitle: const Text('Remove all tasks and reset settings'),
-                    trailing: const Icon(Icons.delete_forever, size: 24),
-                    onTap: () => _showClearDataDialog(context),
-                  ),
-                ),
               ],
             ),
     );
