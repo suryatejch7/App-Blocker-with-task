@@ -238,16 +238,16 @@ class _TasksTab extends StatelessWidget {
               final date = entry.key;
               final tasks = entry.value;
               return [
-                _buildSectionHeader(
-                    context, DateFormat('EEEE, MMM d').format(date), tasks.length),
+                _buildSectionHeader(context,
+                    DateFormat('EEEE, MMM d').format(date), tasks.length),
                 const SizedBox(height: 12),
                 ...tasks.map((task) => _TaskCard(task: task)),
                 const SizedBox(height: 24),
               ];
             }),
             if (completedTasks.isNotEmpty) ...[
-              _buildSectionHeader(
-                  context, 'Completed', completedTasks.length, isCompleted: true),
+              _buildSectionHeader(context, 'Completed', completedTasks.length,
+                  isCompleted: true),
               const SizedBox(height: 12),
               ...completedTasks.map((task) => _TaskCard(task: task)),
             ],

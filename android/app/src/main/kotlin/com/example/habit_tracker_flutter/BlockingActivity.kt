@@ -7,15 +7,20 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.view.View
 import android.view.Gravity
+import android.view.WindowManager
 import android.widget.TextView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.os.Build
 import org.json.JSONArray
 
 class BlockingActivity : Activity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Make this activity appear above everything including floating windows
+        setupWindowFlags()
         
         // Get intent extras
         val blockedPackage = intent.getStringExtra("blockedPackage") ?: ""
@@ -196,16 +201,6 @@ class BlockingActivity : Activity() {
         rootLayout.addView(buttonLayout)
         
         setContentView(rootLayout)
-        
-        // Make it fullscreen
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-            or View.SYSTEM_UI_FLAG_FULLSCREEN
-            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        )
     }
     
     private fun createTaskCard(task: Map<String, Any>): LinearLayout {
@@ -308,5 +303,37 @@ class BlockingActivity : Activity() {
         }
         startActivity(homeIntent)
         finish()
+    }
+    
+    private fun setupWindowFlags() {
+        // Make the activity appear above other windows including floating windows
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
+        
+        // Set window flags to appear above everything
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+        )
+        
+        // Make fullscreen
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            or View.SYSTEM_UI_FLAG_FULLSCREEN
+            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        )
     }
 }

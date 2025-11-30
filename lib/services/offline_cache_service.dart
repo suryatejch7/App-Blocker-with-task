@@ -31,7 +31,8 @@ class OfflineCacheService {
 
       _tasksBox = await Hive.openBox<Map>(_tasksBoxName);
       _restrictionsBox = await Hive.openBox<Map>(_restrictionsBoxName);
-      _pendingOperationsBox = await Hive.openBox<Map>(_pendingOperationsBoxName);
+      _pendingOperationsBox =
+          await Hive.openBox<Map>(_pendingOperationsBoxName);
       _metadataBox = await Hive.openBox(_metadataBoxName);
 
       _isInitialized = true;
@@ -53,7 +54,8 @@ class OfflineCacheService {
         final id = task['id'] as String;
         await _tasksBox.put(id, Map<String, dynamic>.from(task));
       }
-      await _metadataBox.put('tasks_last_sync', DateTime.now().toIso8601String());
+      await _metadataBox.put(
+          'tasks_last_sync', DateTime.now().toIso8601String());
       debugPrint('✅ Cached ${tasks.length} tasks locally');
     } catch (e) {
       debugPrint('❌ Error caching tasks: $e');
@@ -63,9 +65,8 @@ class OfflineCacheService {
   /// Get all cached tasks
   List<Map<String, dynamic>> getCachedTasks() {
     try {
-      final tasks = _tasksBox.values
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+      final tasks =
+          _tasksBox.values.map((e) => Map<String, dynamic>.from(e)).toList();
       debugPrint('📦 Retrieved ${tasks.length} tasks from cache');
       return tasks;
     } catch (e) {
@@ -116,8 +117,10 @@ class OfflineCacheService {
     try {
       await _restrictionsBox.put('default_apps', {'items': apps});
       await _restrictionsBox.put('default_websites', {'items': websites});
-      await _metadataBox.put('restrictions_last_sync', DateTime.now().toIso8601String());
-      debugPrint('✅ Cached default restrictions: ${apps.length} apps, ${websites.length} websites');
+      await _metadataBox.put(
+          'restrictions_last_sync', DateTime.now().toIso8601String());
+      debugPrint(
+          '✅ Cached default restrictions: ${apps.length} apps, ${websites.length} websites');
     } catch (e) {
       debugPrint('❌ Error caching default restrictions: $e');
     }
@@ -131,7 +134,8 @@ class OfflineCacheService {
     try {
       await _restrictionsBox.put('permanent_apps', {'items': apps});
       await _restrictionsBox.put('permanent_websites', {'items': websites});
-      debugPrint('✅ Cached permanent blocks: ${apps.length} apps, ${websites.length} websites');
+      debugPrint(
+          '✅ Cached permanent blocks: ${apps.length} apps, ${websites.length} websites');
     } catch (e) {
       debugPrint('❌ Error caching permanent blocks: $e');
     }

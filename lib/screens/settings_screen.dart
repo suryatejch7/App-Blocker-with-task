@@ -16,6 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _restrictionService = RestrictionService();
   bool _accessibilityGranted = false;
   bool _usageStatsGranted = false;
+  bool _overlayGranted = false;
   bool _isLoading = true;
 
   @override
@@ -28,9 +29,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isLoading = true);
     try {
       final granted = await _restrictionService.checkPermissions();
+      final overlayGranted = await _restrictionService.checkOverlayPermission();
       setState(() {
         _accessibilityGranted = granted;
         _usageStatsGranted = granted; // Simplified for now
+        _overlayGranted = overlayGranted;
         _isLoading = false;
       });
     } catch (e) {
@@ -53,6 +56,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error requesting permissions: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _requestOverlayPermission() async {
+    try {
+      await _restrictionService.requestOverlayPermission();
+      // Wait a bit for user to grant permissions
+      await Future.delayed(const Duration(seconds: 2));
+      await _checkPermissions();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error requesting overlay permission: $e')),
         );
       }
     }
@@ -174,6 +192,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.analytics,
                   isGranted: _usageStatsGranted,
                   onRequest: _requestPermissions,
+                ),
+                const SizedBox(height: 12),
+                _PermissionCard(
+                  title: 'Display Over Other Apps',
+                  description:
+                      'Required to block floating windows and picture-in-picture mode',
+                  icon: Icons.picture_in_picture_alt,
+                  isGranted: _overlayGranted,
+                  onRequest: _requestOverlayPermission,
                 ),
                 const SizedBox(height: 32),
 

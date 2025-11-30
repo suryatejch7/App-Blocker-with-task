@@ -26,6 +26,29 @@ class RestrictionService {
     }
   }
 
+  // Check if overlay permission is granted (needed for floating window blocking)
+  Future<bool> checkOverlayPermission() async {
+    try {
+      final bool result = await platform.invokeMethod('checkOverlayPermission');
+      return result;
+    } catch (e) {
+      debugPrint('Error checking overlay permission: $e');
+      return false;
+    }
+  }
+
+  // Request overlay permission
+  Future<bool> requestOverlayPermission() async {
+    try {
+      final bool result =
+          await platform.invokeMethod('requestOverlayPermission');
+      return result;
+    } catch (e) {
+      debugPrint('Error requesting overlay permission: $e');
+      return false;
+    }
+  }
+
   // Update restriction list on native side
   // Now includes task details and permanent block info for enhanced blocking screen
   Future<void> updateRestrictions(

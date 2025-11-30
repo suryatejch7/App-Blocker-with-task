@@ -9,13 +9,13 @@ class ConnectivityService {
   ConnectivityService._internal();
 
   final Connectivity _connectivity = Connectivity();
-  
+
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   final _connectivityController = StreamController<bool>.broadcast();
-  
+
   bool _isOnline = true;
   bool get isOnline => _isOnline;
-  
+
   Stream<bool> get onConnectivityChanged => _connectivityController.stream;
 
   /// Initialize connectivity monitoring
@@ -43,11 +43,11 @@ class ConnectivityService {
 
   void _updateStatus(List<ConnectivityResult> result) {
     final wasOnline = _isOnline;
-    _isOnline = result.isNotEmpty && 
-                !result.contains(ConnectivityResult.none);
-    
+    _isOnline = result.isNotEmpty && !result.contains(ConnectivityResult.none);
+
     if (wasOnline != _isOnline) {
-      debugPrint('🌐 Connectivity changed: ${_isOnline ? "ONLINE" : "OFFLINE"}');
+      debugPrint(
+          '🌐 Connectivity changed: ${_isOnline ? "ONLINE" : "OFFLINE"}');
       _connectivityController.add(_isOnline);
     }
   }

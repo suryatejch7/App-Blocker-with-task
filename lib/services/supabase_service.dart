@@ -51,12 +51,12 @@ class SupabaseService {
           .order('start_time', ascending: true);
       debugPrint(
           '✅ SupabaseService.getTasks - Fetched ${response.length} tasks');
-      
+
       final tasks = List<Map<String, dynamic>>.from(response);
-      
+
       // Cache for offline use
       await _cacheService.cacheTasks(tasks);
-      
+
       return tasks;
     } catch (e, stackTrace) {
       debugPrint('❌ SupabaseService.getTasks - Error: $e');
