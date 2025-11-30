@@ -27,22 +27,32 @@ class RestrictionService {
   }
 
   // Update restriction list on native side
+  // Now includes task details and permanent block info for enhanced blocking screen
   Future<void> updateRestrictions(
     List<String> apps,
     List<String> websites,
-    bool restrictionsActive,
-  ) async {
+    bool restrictionsActive, {
+    List<Map<String, dynamic>> pendingTasks = const [],
+    List<String> permanentlyBlockedApps = const [],
+    List<String> permanentlyBlockedWebsites = const [],
+  }) async {
     try {
       debugPrint(
           '📡 RestrictionService.updateRestrictions - Sending to native:');
       debugPrint('   Apps (${apps.length}): $apps');
       debugPrint('   Websites (${websites.length}): $websites');
       debugPrint('   Active: $restrictionsActive');
+      debugPrint('   Pending tasks: ${pendingTasks.length}');
+      debugPrint(
+          '   Permanently blocked apps: ${permanentlyBlockedApps.length}');
 
       await platform.invokeMethod('updateRestrictions', {
         'apps': apps,
         'websites': websites,
         'active': restrictionsActive,
+        'pendingTasks': pendingTasks,
+        'permanentlyBlockedApps': permanentlyBlockedApps,
+        'permanentlyBlockedWebsites': permanentlyBlockedWebsites,
       });
 
       debugPrint(

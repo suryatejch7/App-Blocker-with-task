@@ -141,12 +141,27 @@ class TaskProvider extends ChangeNotifier {
         permanentlyBlockedWebsites.isNotEmpty;
     debugPrint('🔒 Restrictions should be active: $shouldBeActive');
 
+    // Prepare pending tasks info for the blocking screen
+    final pendingTasksInfo = relevantTasks
+        .map((task) => {
+              'id': task.id,
+              'title': task.title,
+              'description': task.description,
+              'startTime': task.startTime.toIso8601String(),
+              'endTime': task.endTime.toIso8601String(),
+              'isOverdue': task.isOverdue,
+            })
+        .toList();
+
     try {
       debugPrint('📡 Sending to native Android service...');
       await _restrictionService.updateRestrictions(
         appsToRestrict.toList(),
         websitesToRestrict.toList(),
         shouldBeActive,
+        pendingTasks: pendingTasksInfo,
+        permanentlyBlockedApps: permanentlyBlockedApps,
+        permanentlyBlockedWebsites: permanentlyBlockedWebsites,
       );
       debugPrint(
           '✅ TaskProvider.syncRestrictions - Successfully synced to native!');

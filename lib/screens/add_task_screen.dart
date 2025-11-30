@@ -106,6 +106,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       initialDate: _startTime,
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        // Use the current app theme for the picker
+        return Theme(
+          data: Theme.of(context),
+          child: child!,
+        );
+      },
     );
 
     if (date != null && mounted) {
@@ -250,6 +257,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(base),
+      builder: (context, child) {
+        // Use the current app theme for the picker
+        return Theme(
+          data: Theme.of(context),
+          child: child!,
+        );
+      },
     );
 
     if (time != null && mounted) {
@@ -312,167 +326,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     }
   }
 
-  Widget _buildRepeatOption(String value, String label) {
-    final selected = _repeatSettings == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _repeatSettings = value;
-          });
-        },
-        child: Container(
-          height: 40,
-          decoration: BoxDecoration(
-            color: selected
-                ? AppTheme.blue.withOpacity(0.15)
-                : AppTheme.mediumGray,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected ? AppTheme.blue : AppTheme.lightGray,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: selected ? AppTheme.blue : AppTheme.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRestrictionOption(String value, String label) {
-    final selected = _restrictionMode == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _restrictionMode = value;
-        });
-      },
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color:
-              selected ? AppTheme.blue.withOpacity(0.15) : AppTheme.mediumGray,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? AppTheme.blue : AppTheme.lightGray,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: selected ? AppTheme.blue : AppTheme.white,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimeChip(BuildContext context,
-      {required bool isStart, required DateTime time}) {
-    final label = DateFormat('HH:mm').format(time);
-    return GestureDetector(
-      onTap: () => _selectTime(isStart),
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: AppTheme.mediumGray,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.lightGray),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.access_time,
-              size: 18,
-              color: AppTheme.blue,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRestrictionCard({
-    required String value,
-    required String title,
-    required String subtitle,
-  }) {
-    final selected = _restrictionMode == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _restrictionMode = value;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.darkGray,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppTheme.blue : AppTheme.lightGray,
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Radio<String>(
-              value: value,
-              groupValue: _restrictionMode,
-              onChanged: (val) {
-                if (val == null) return;
-                setState(() {
-                  _restrictionMode = val;
-                });
-              },
-              activeColor: AppTheme.blue,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.white.withOpacity(0.7),
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existingTask != null;
@@ -480,305 +333,849 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     final backgroundColor = isDark ? AppTheme.black : AppTheme.lightBackground;
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.7) : AppTheme.lightTextSecondary;
+    final cardColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
+    final borderColor = isDark ? AppTheme.lightGray : AppTheme.lightBorder;
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        centerTitle: true,
-        toolbarHeight: 80,
-        automaticallyImplyLeading: false,
-        flexibleSpace: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.close, color: textColor),
-                  onPressed: () => context.pop(),
-                ),
-                Expanded(
-                  child: Text(
-                    isEditing ? 'Edit Task' : 'New Task',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: TextButton(
-                    onPressed: _saveTask,
-                    style: TextButton.styleFrom(
-                      backgroundColor: AppTheme.blue,
-                      foregroundColor: AppTheme.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
+      body: CustomScrollView(
+        slivers: [
+          // Modern App Bar
+          SliverAppBar(
+            backgroundColor: backgroundColor,
+            elevation: 0,
+            pinned: true,
+            expandedHeight: 140,
+            automaticallyImplyLeading: false,
+            flexibleSpace: FlexibleSpaceBar(
+              background: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => context.pop(),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.arrow_back_ios_new,
+                                  size: 18, color: textColor),
+                            ),
+                          ),
+                          const Spacer(),
+                          _buildSaveButton(),
+                        ],
                       ),
-                    ),
-                    child: const Text(
-                      'Save',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: accentColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              isEditing ? Icons.edit_note : Icons.add_task,
+                              color: isDark ? AppTheme.black : AppTheme.white,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            isEditing ? 'Edit Task' : 'Create Task',
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(2),
-          child: Container(
-            height: 1.5,
-            color: AppTheme.lightGray.withOpacity(0.65),
-          ),
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Task Name
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Task Name *',
-                hintText: 'e.g., Complete Morning Workout',
-                prefixIcon: Icon(Icons.title),
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Title is required';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
 
-            // Description
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'Add details about this task',
-                prefixIcon: Icon(Icons.description),
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
-
-            // Date & Time Section
-            Text(
-              'Date',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: accentColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: _selectDate,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppTheme.darkGray,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.lightGray),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.event, color: AppTheme.blue),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        DateFormat('EEEE, MMM d, yyyy').format(_startTime),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                    const Icon(Icons.edit_calendar, size: 20),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Start Time',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.white.withOpacity(0.8),
-                      ),
-                ),
-                Text(
-                  'End Time',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.white.withOpacity(0.8),
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTimeChip(
-                    context,
-                    isStart: true,
-                    time: _startTime,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTimeChip(
-                    context,
-                    isStart: false,
-                    time: _endTime,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Repeat Settings
-            Card(
+          // Form Content
+          SliverToBoxAdapter(
+            child: Form(
+              key: _formKey,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.repeat, color: AppTheme.blue),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Repeat',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ],
+                    // Task Details Section
+                    _buildSectionCard(
+                      context,
+                      icon: Icons.task_alt,
+                      iconColor: AppTheme.blue,
+                      title: 'Task Details',
+                      cardColor: cardColor,
+                      borderColor: borderColor,
+                      textColor: textColor,
+                      child: Column(
+                        children: [
+                          // Task Name
+                          _buildModernTextField(
+                            controller: _titleController,
+                            label: 'Task Name',
+                            hint: 'What do you need to do?',
+                            icon: Icons.title,
+                            isRequired: true,
+                            cardColor: cardColor,
+                            borderColor: borderColor,
+                            textColor: textColor,
+                            subtextColor: subtextColor,
+                          ),
+                          const SizedBox(height: 16),
+                          // Description
+                          _buildModernTextField(
+                            controller: _descriptionController,
+                            label: 'Description',
+                            hint: 'Add more details (optional)',
+                            icon: Icons.notes,
+                            maxLines: 3,
+                            cardColor: cardColor,
+                            borderColor: borderColor,
+                            textColor: textColor,
+                            subtextColor: subtextColor,
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildRepeatOption('none', 'None'),
-                        const SizedBox(width: 8),
-                        _buildRepeatOption('daily', 'Daily'),
-                        const SizedBox(width: 8),
-                        _buildRepeatOption('weekly', 'Weekly'),
-                        const SizedBox(width: 8),
-                        _buildRepeatOption('custom', 'Custom'),
-                      ],
+
+                    const SizedBox(height: 20),
+
+                    // Schedule Section
+                    _buildSectionCard(
+                      context,
+                      icon: Icons.schedule,
+                      iconColor: accentColor,
+                      title: 'Schedule',
+                      cardColor: cardColor,
+                      borderColor: borderColor,
+                      textColor: textColor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Date Picker
+                          GestureDetector(
+                            onTap: _selectDate,
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: accentColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: accentColor.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: accentColor.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(Icons.calendar_today,
+                                        color: accentColor, size: 22),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          DateFormat('EEEE').format(_startTime),
+                                          style: TextStyle(
+                                            color: accentColor,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          DateFormat('MMMM d, yyyy')
+                                              .format(_startTime),
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.chevron_right,
+                                      color: subtextColor),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Time Selection
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTimeSelector(
+                                  context,
+                                  label: 'Start',
+                                  time: _startTime,
+                                  isStart: true,
+                                  cardColor: cardColor,
+                                  borderColor: borderColor,
+                                  textColor: textColor,
+                                  subtextColor: subtextColor,
+                                ),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Icon(Icons.arrow_forward,
+                                    color: subtextColor, size: 20),
+                              ),
+                              Expanded(
+                                child: _buildTimeSelector(
+                                  context,
+                                  label: 'End',
+                                  time: _endTime,
+                                  isStart: false,
+                                  cardColor: cardColor,
+                                  borderColor: borderColor,
+                                  textColor: textColor,
+                                  subtextColor: subtextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Duration info
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.timelapse,
+                                    size: 18, color: AppTheme.blue),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Duration: ${_formatDuration(_endTime.difference(_startTime))}',
+                                  style: const TextStyle(
+                                    color: AppTheme.blue,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+
+                    const SizedBox(height: 20),
+
+                    // Repeat Section
+                    _buildSectionCard(
+                      context,
+                      icon: Icons.repeat,
+                      iconColor: Colors.purple,
+                      title: 'Repeat',
+                      cardColor: cardColor,
+                      borderColor: borderColor,
+                      textColor: textColor,
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _buildRepeatChip('none', 'Once', Icons.looks_one),
+                          _buildRepeatChip('daily', 'Daily', Icons.today),
+                          _buildRepeatChip(
+                              'weekly', 'Weekly', Icons.date_range),
+                          _buildRepeatChip('custom', 'Custom', Icons.tune),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Restrictions Section
+                    _buildSectionCard(
+                      context,
+                      icon: Icons.block,
+                      iconColor: Colors.redAccent,
+                      title: 'App Blocking',
+                      subtitle:
+                          'Block distracting apps while working on this task',
+                      cardColor: cardColor,
+                      borderColor: borderColor,
+                      textColor: textColor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Restriction mode toggle
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildRestrictionToggle(
+                                  'default',
+                                  'Default List',
+                                  Icons.list_alt,
+                                  'Use your preset blocked apps',
+                                  cardColor,
+                                  borderColor,
+                                  textColor,
+                                  subtextColor,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildRestrictionToggle(
+                                  'custom',
+                                  'Custom',
+                                  Icons.tune,
+                                  'Choose specific apps',
+                                  cardColor,
+                                  borderColor,
+                                  textColor,
+                                  subtextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Custom apps/websites selection
+                          if (_restrictionMode == 'custom') ...[
+                            const SizedBox(height: 20),
+                            _buildCustomRestrictionSection(
+                              context,
+                              title: 'Blocked Apps',
+                              items: _customRestrictedApps,
+                              emptyMessage: 'No apps blocked yet',
+                              icon: Icons.android,
+                              onAdd: _selectCustomApps,
+                              onRemove: (item) {
+                                setState(() {
+                                  _customRestrictedApps.remove(item);
+                                });
+                              },
+                              cardColor: cardColor,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                              subtextColor: subtextColor,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildCustomRestrictionSection(
+                              context,
+                              title: 'Blocked Websites',
+                              items: _customRestrictedWebsites,
+                              emptyMessage: 'No websites blocked yet',
+                              icon: Icons.language,
+                              onAdd: _showAddCustomWebsiteDialog,
+                              onRemove: (item) {
+                                setState(() {
+                                  _customRestrictedWebsites.remove(item);
+                                });
+                              },
+                              cardColor: cardColor,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                              subtextColor: subtextColor,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Restrictions Section
+  Widget _buildSaveButton() {
+    return GestureDetector(
+      onTap: _saveTask,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.blue,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check, color: AppTheme.white, size: 20),
+            SizedBox(width: 8),
             Text(
-              'RESTRICTIONS',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: accentColor,
+              'Save',
+              style: TextStyle(
+                color: AppTheme.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    required Widget child,
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: textColor.withOpacity(0.6),
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool isRequired = false,
+    int maxLines = 1,
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
+    required Color subtextColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fillColor = isDark
+        ? AppTheme.mediumGray.withOpacity(0.5)
+        : AppTheme.lightBackground;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: subtextColor),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: subtextColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (isRequired)
+              const Text(
+                ' *',
+                style: TextStyle(color: Colors.redAccent, fontSize: 13),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          textCapitalization: TextCapitalization.sentences,
+          style: TextStyle(color: textColor, fontSize: 15),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: subtextColor.withOpacity(0.6)),
+            filled: true,
+            fillColor: fillColor,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: borderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppTheme.blue, width: 2),
+            ),
+          ),
+          validator: isRequired
+              ? (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'This field is required';
+                  }
+                  return null;
+                }
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeSelector(
+    BuildContext context, {
+    required String label,
+    required DateTime time,
+    required bool isStart,
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
+    required Color subtextColor,
+  }) {
+    return GestureDetector(
+      onTap: () => _selectTime(isStart),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: subtextColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.access_time, size: 20, color: AppTheme.blue),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('HH:mm').format(time),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildRestrictionOption('default', 'Default'),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildRestrictionOption('custom', 'Custom'),
                 ),
               ],
             ),
-            if (_restrictionMode == 'custom') ...[
-              const SizedBox(height: 16),
-              Text(
-                'Custom Blocked Apps',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              if (_customRestrictedApps.isEmpty)
-                Text(
-                  'No apps selected',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.white.withOpacity(0.5),
-                      ),
-                )
-              else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _customRestrictedApps
-                      .map((app) => Chip(
-                            label: Text(app),
-                            deleteIcon: const Icon(Icons.close, size: 18),
-                            onDeleted: () {
-                              setState(() {
-                                _customRestrictedApps.remove(app);
-                              });
-                            },
-                          ))
-                      .toList(),
-                ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed: _selectCustomApps,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Apps'),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Custom Blocked Websites',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              if (_customRestrictedWebsites.isEmpty)
-                Text(
-                  'No websites selected',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.white.withOpacity(0.5),
-                      ),
-                )
-              else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _customRestrictedWebsites
-                      .map((site) => Chip(
-                            label: Text(site),
-                            deleteIcon: const Icon(Icons.close, size: 18),
-                            onDeleted: () {
-                              setState(() {
-                                _customRestrictedWebsites.remove(site);
-                              });
-                            },
-                          ))
-                      .toList(),
-                ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed: _showAddCustomWebsiteDialog,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Websites'),
-              ),
-            ],
           ],
         ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    if (hours > 0 && minutes > 0) {
+      return '${hours}h ${minutes}m';
+    } else if (hours > 0) {
+      return '${hours}h';
+    } else {
+      return '${minutes}m';
+    }
+  }
+
+  Widget _buildRepeatChip(String value, String label, IconData icon) {
+    final selected = _repeatSettings == value;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedBg = isDark ? AppTheme.mediumGray : AppTheme.lightSurface;
+    final unselectedBorder = isDark ? AppTheme.lightGray : AppTheme.lightBorder;
+    final textColor = isDark ? AppTheme.white : AppTheme.lightText;
+
+    return GestureDetector(
+      onTap: () => setState(() => _repeatSettings = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? Colors.purple : unselectedBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? Colors.purple : unselectedBorder,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: selected ? AppTheme.white : textColor,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppTheme.white : textColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRestrictionToggle(
+    String value,
+    String label,
+    IconData icon,
+    String description,
+    Color cardColor,
+    Color borderColor,
+    Color textColor,
+    Color subtextColor,
+  ) {
+    final selected = _restrictionMode == value;
+
+    return GestureDetector(
+      onTap: () => setState(() => _restrictionMode = value),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0x26FF5252) : cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? Colors.redAccent : borderColor,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: selected ? Colors.redAccent : subtextColor,
+              size: 24,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.redAccent : textColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: subtextColor,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomRestrictionSection(
+    BuildContext context, {
+    required String title,
+    required List<String> items,
+    required String emptyMessage,
+    required IconData icon,
+    required VoidCallback onAdd,
+    required Function(String) onRemove,
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
+    required Color subtextColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fillColor = isDark
+        ? AppTheme.mediumGray.withOpacity(0.3)
+        : AppTheme.lightBackground;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: fillColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: subtextColor),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  color: textColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onAdd,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.blue.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 16, color: AppTheme.blue),
+                      SizedBox(width: 4),
+                      Text(
+                        'Add',
+                        style: TextStyle(
+                          color: AppTheme.blue,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (items.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  emptyMessage,
+                  style: TextStyle(
+                    color: subtextColor,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: items.map((item) {
+                // Shorten package names for display
+                final displayName =
+                    item.contains('.') ? item.split('.').last : item;
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border:
+                        Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName,
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => onRemove(item),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
       ),
     );
   }
@@ -809,6 +1206,11 @@ class _TaskAppSelectorDialogState extends State<_TaskAppSelectorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+    final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
+
     final filteredApps = widget.installedApps.where((app) {
       final packageName = (app['packageName'] ?? '') as String;
       final appName = (app['name'] ?? '') as String;
@@ -827,7 +1229,7 @@ class _TaskAppSelectorDialogState extends State<_TaskAppSelectorDialog> {
           children: [
             Row(
               children: [
-                const Icon(Icons.apps, color: AppTheme.yellow),
+                Icon(Icons.apps, color: accentColor),
                 const SizedBox(width: 12),
                 Text(
                   'Select Apps to Block',
@@ -875,7 +1277,7 @@ class _TaskAppSelectorDialogState extends State<_TaskAppSelectorDialog> {
                       packageName,
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.white.withOpacity(0.6),
+                        color: subtextColor,
                       ),
                     ),
                     secondary: const Icon(Icons.android, color: AppTheme.blue),

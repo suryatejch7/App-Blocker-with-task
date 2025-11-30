@@ -29,8 +29,18 @@ class MainActivity : FlutterActivity() {
                     val apps = call.argument<List<String>>("apps") ?: emptyList()
                     val websites = call.argument<List<String>>("websites") ?: emptyList()
                     val active = call.argument<Boolean>("active") ?: false
+                    val pendingTasks = call.argument<List<Map<String, Any>>>("pendingTasks") ?: emptyList()
+                    val permanentlyBlockedApps = call.argument<List<String>>("permanentlyBlockedApps") ?: emptyList()
+                    val permanentlyBlockedWebsites = call.argument<List<String>>("permanentlyBlockedWebsites") ?: emptyList()
                     
-                    AppBlockingService.updateRestrictions(apps, websites, active)
+                    AppBlockingService.updateRestrictions(
+                        apps, 
+                        websites, 
+                        active,
+                        pendingTasks,
+                        permanentlyBlockedApps,
+                        permanentlyBlockedWebsites
+                    )
                     result.success(null)
                 }
                 "getInstalledApps" -> {

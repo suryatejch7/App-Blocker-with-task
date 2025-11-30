@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -223,24 +224,7 @@ class _TasksTab extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           children: [
             if (todayTasks.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Today',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppTheme.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  Text(
-                    '${todayTasks.length} ${todayTasks.length == 1 ? 'task' : 'tasks'}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.white.withOpacity(0.6),
-                        ),
-                  ),
-                ],
-              ),
+              _buildSectionHeader(context, 'Today', todayTasks.length),
               const SizedBox(height: 12),
               ...todayTasks.map((task) => _TaskCard(task: task)),
               const SizedBox(height: 24),
@@ -249,48 +233,16 @@ class _TasksTab extends StatelessWidget {
               final date = entry.key;
               final tasks = entry.value;
               return [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      DateFormat('EEEE, MMM d').format(date),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppTheme.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    Text(
-                      '${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.white.withOpacity(0.6),
-                          ),
-                    ),
-                  ],
-                ),
+                _buildSectionHeader(
+                    context, DateFormat('EEEE, MMM d').format(date), tasks.length),
                 const SizedBox(height: 12),
                 ...tasks.map((task) => _TaskCard(task: task)),
                 const SizedBox(height: 24),
               ];
             }),
             if (completedTasks.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Completed Tasks',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppTheme.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  Text(
-                    '${completedTasks.length} ${completedTasks.length == 1 ? 'task' : 'tasks'}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.white.withOpacity(0.6),
-                        ),
-                  ),
-                ],
-              ),
+              _buildSectionHeader(
+                  context, 'Completed', completedTasks.length, isCompleted: true),
               const SizedBox(height: 12),
               ...completedTasks.map((task) => _TaskCard(task: task)),
             ],
@@ -344,6 +296,63 @@ class _TasksTab extends StatelessWidget {
       },
     );
   }
+
+  Widget _buildSectionHeader(BuildContext context, String title, int count,
+      {bool isCompleted = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppTheme.white : AppTheme.lightText;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+    final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isCompleted
+                  ? Colors.green.withOpacity(0.15)
+                  : accentColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isCompleted ? Icons.check_circle : Icons.calendar_today,
+              size: 18,
+              color: isCompleted ? Colors.green : accentColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: subtextColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$count ${count == 1 ? 'task' : 'tasks'}',
+              style: TextStyle(
+                color: subtextColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TaskCard extends StatelessWidget {
@@ -389,10 +398,13 @@ class _TaskCard extends StatelessWidget {
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () => taskProvider.toggleComplete(task.id),
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      taskProvider.toggleComplete(task.id);
+                    },
                     child: Container(
-                      width: 22,
-                      height: 22,
+                      width: 24,
+                      height: 24,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
@@ -405,7 +417,7 @@ class _TaskCard extends StatelessWidget {
                       child: task.completed
                           ? const Icon(
                               Icons.check,
-                              size: 14,
+                              size: 16,
                               color: AppTheme.white,
                             )
                           : null,
