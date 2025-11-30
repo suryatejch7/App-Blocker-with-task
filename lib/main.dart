@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/apps_provider.dart';
 import 'providers/websites_provider.dart';
 import 'providers/restrictions_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/home_tabs.dart';
 import 'screens/add_task_screen.dart';
 import 'screens/settings_screen.dart';
@@ -61,7 +61,9 @@ class HabitApp extends StatelessWidget {
     );
     return MultiProvider(
       providers: [
-        // Restrictions provider first
+        // Theme provider first
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        // Restrictions provider
         ChangeNotifierProvider(create: (_) => RestrictionsProvider()),
         // Task provider with access to RestrictionsProvider
         ChangeNotifierProxyProvider<RestrictionsProvider, TaskProvider>(
@@ -69,15 +71,27 @@ class HabitApp extends StatelessWidget {
           update: (context, restrictionsProvider, taskProvider) {
             if (taskProvider != null) {
               // Set up the callback to sync restrictions when they change
-              restrictionsProvider.onRestrictionsChanged = (apps, websites) {
+              restrictionsProvider.onRestrictionsChanged = (
+                defaultApps,
+                defaultWebsites,
+                permanentApps,
+                permanentWebsites,
+              ) {
                 debugPrint(
                     '🔗 RestrictionsProvider notified TaskProvider of changes');
-                taskProvider.syncRestrictions(apps, websites);
+                taskProvider.syncRestrictions(
+                  defaultApps,
+                  defaultWebsites,
+                  permanentApps,
+                  permanentWebsites,
+                );
               };
               // Do initial sync
               taskProvider.syncRestrictions(
                 restrictionsProvider.defaultRestrictedApps,
                 restrictionsProvider.defaultRestrictedWebsites,
+                restrictionsProvider.permanentlyBlockedApps,
+                restrictionsProvider.permanentlyBlockedWebsites,
               );
             }
             return taskProvider ?? TaskProvider();
@@ -86,11 +100,17 @@ class HabitApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AppsProvider()),
         ChangeNotifierProvider(create: (_) => WebsitesProvider()),
       ],
-      child: MaterialApp.router(
-        title: 'Productivity Blocker',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme,
-        routerConfig: router,
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp.router(
+            title: 'Productivity Blocker',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            routerConfig: router,
+          );
+        },
       ),
     );
   }

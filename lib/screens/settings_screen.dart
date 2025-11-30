@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/restriction_service.dart';
 import '../theme/app_theme.dart';
 
@@ -58,6 +60,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
@@ -71,11 +77,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // Appearance Section
+                Text(
+                  'APPEARANCE',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: accentColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.blue.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            isDark ? Icons.dark_mode : Icons.light_mode,
+                            color: AppTheme.blue,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Dark Mode',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                isDark
+                                    ? 'Currently using dark theme'
+                                    : 'Currently using light theme',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.color
+                                          ?.withOpacity(0.6),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: isDark,
+                          onChanged: (value) => themeProvider.toggleTheme(),
+                          activeColor: AppTheme.blue,
+                          activeTrackColor: AppTheme.blue.withOpacity(0.5),
+                          inactiveThumbColor: isDark
+                              ? AppTheme.white
+                              : AppTheme.lightTextSecondary,
+                          inactiveTrackColor: isDark
+                              ? AppTheme.lightGray
+                              : AppTheme.lightBorder,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
                 // Permissions Section
                 Text(
                   'PERMISSIONS',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.yellow,
+                        color: accentColor,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -142,8 +220,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         .textTheme
                                         .bodyMedium
                                         ?.copyWith(
-                                          color: AppTheme.white
-                                              .withValues(alpha: 0.6),
+                                          color: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.color
+                                              ?.withOpacity(0.6),
                                         ),
                                   ),
                                 ],
@@ -154,12 +235,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 16),
                         Text(
                           'Block distracting apps and websites during your focus time. Create time-bound tasks and let the app enforce your restrictions automatically.',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color: AppTheme.white.withValues(alpha: 0.8),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withOpacity(0.8),
+                                  ),
                         ),
                       ],
                     ),
@@ -231,6 +314,10 @@ class _PermissionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -240,13 +327,15 @@ class _PermissionCard extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: isGranted
-                    ? AppTheme.blue.withValues(alpha: 0.2)
-                    : AppTheme.mediumGray,
+                    ? AppTheme.blue.withOpacity(0.2)
+                    : (isDark ? AppTheme.mediumGray : AppTheme.lightBorder),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                color: isGranted ? AppTheme.blue : AppTheme.white,
+                color: isGranted
+                    ? AppTheme.blue
+                    : (isDark ? AppTheme.white : AppTheme.lightTextSecondary),
                 size: 28,
               ),
             ),
@@ -287,7 +376,7 @@ class _PermissionCard extends StatelessWidget {
                   Text(
                     description,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.white.withValues(alpha: 0.6),
+                          color: subtextColor,
                         ),
                   ),
                   if (!isGranted) ...[

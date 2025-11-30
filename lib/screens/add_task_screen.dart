@@ -281,9 +281,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       debugPrint('💾 AddTaskScreen._saveTask - Saving task');
       debugPrint('   📅 Start time: $_startTime (${_startTime.timeZoneName})');
       debugPrint('   📅 End time: $_endTime (${_endTime.timeZoneName})');
-      debugPrint('   🔢 Start time millis: ${_startTime.millisecondsSinceEpoch}');
+      debugPrint(
+          '   🔢 Start time millis: ${_startTime.millisecondsSinceEpoch}');
       debugPrint('   🔢 End time millis: ${_endTime.millisecondsSinceEpoch}');
-      
+
       final provider = Provider.of<TaskProvider>(context, listen: false);
       final task = Task(
         id: widget.existingTask?.id ?? const Uuid().v4(),
@@ -356,9 +357,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       child: Container(
         height: 40,
         decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.blue.withOpacity(0.15)
-              : AppTheme.mediumGray,
+          color:
+              selected ? AppTheme.blue.withOpacity(0.15) : AppTheme.mediumGray,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected ? AppTheme.blue : AppTheme.lightGray,
@@ -460,10 +460,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppTheme.white.withOpacity(0.7),
                         ),
                   ),
@@ -479,11 +476,15 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existingTask != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppTheme.black : AppTheme.lightBackground;
+    final textColor = isDark ? AppTheme.white : AppTheme.lightText;
+    final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
 
     return Scaffold(
-      backgroundColor: AppTheme.black,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.black,
+        backgroundColor: backgroundColor,
         elevation: 0,
         centerTitle: true,
         toolbarHeight: 80,
@@ -494,15 +495,15 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.close, color: AppTheme.white),
+                  icon: Icon(Icons.close, color: textColor),
                   onPressed: () => context.pop(),
                 ),
                 Expanded(
                   child: Text(
                     isEditing ? 'Edit Task' : 'New Task',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: AppTheme.white,
+                    style: TextStyle(
+                      color: textColor,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -579,7 +580,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             Text(
               'Date',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.yellow,
+                    color: accentColor,
                     fontWeight: FontWeight.bold,
                   ),
             ),
@@ -688,7 +689,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             Text(
               'RESTRICTIONS',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.yellow,
+                    color: accentColor,
                     fontWeight: FontWeight.bold,
                   ),
             ),
@@ -877,8 +878,7 @@ class _TaskAppSelectorDialogState extends State<_TaskAppSelectorDialog> {
                         color: AppTheme.white.withOpacity(0.6),
                       ),
                     ),
-                    secondary:
-                        const Icon(Icons.android, color: AppTheme.blue),
+                    secondary: const Icon(Icons.android, color: AppTheme.blue),
                   );
                 },
               ),
@@ -917,4 +917,3 @@ class _TaskAppSelectorDialogState extends State<_TaskAppSelectorDialog> {
     );
   }
 }
-

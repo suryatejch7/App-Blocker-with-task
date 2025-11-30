@@ -186,6 +186,97 @@ class SupabaseService {
     }
   }
 
+  // Permanently blocked apps operations
+  Future<List<String>> getPermanentlyBlockedApps() async {
+    try {
+      debugPrint('🔵 SupabaseService.getPermanentlyBlockedApps - Fetching...');
+      final response = await client
+          .from('permanent_blocks')
+          .select('package_name')
+          .eq('type', 'app');
+      final apps =
+          (response as List).map((e) => e['package_name'] as String).toList();
+      debugPrint(
+          '✅ SupabaseService.getPermanentlyBlockedApps - Fetched ${apps.length} apps');
+      return apps;
+    } catch (e, stackTrace) {
+      debugPrint('❌ SupabaseService.getPermanentlyBlockedApps - Error: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      return [];
+    }
+  }
+
+  Future<List<String>> getPermanentlyBlockedWebsites() async {
+    try {
+      debugPrint(
+          '🔵 SupabaseService.getPermanentlyBlockedWebsites - Fetching...');
+      final response = await client
+          .from('permanent_blocks')
+          .select('domain')
+          .eq('type', 'website');
+      final websites =
+          (response as List).map((e) => e['domain'] as String).toList();
+      debugPrint(
+          '✅ SupabaseService.getPermanentlyBlockedWebsites - Fetched ${websites.length} websites');
+      return websites;
+    } catch (e, stackTrace) {
+      debugPrint('❌ SupabaseService.getPermanentlyBlockedWebsites - Error: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      return [];
+    }
+  }
+
+  Future<void> addPermanentBlock(String type, String value) async {
+    try {
+      debugPrint(
+          '🔵 SupabaseService.addPermanentBlock - Type: $type, Value: $value');
+
+      final data = {
+        'type': type,
+        if (type == 'app') 'package_name': value,
+        if (type == 'website') 'domain': value,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      final response =
+          await client.from('permanent_blocks').insert(data).select();
+
+      debugPrint('✅ SupabaseService.addPermanentBlock - SUCCESS!');
+      debugPrint('📊 Response: $response');
+    } catch (e, stackTrace) {
+      debugPrint('❌❌❌ SupabaseService.addPermanentBlock - FAILED! ❌❌❌');
+      debugPrint('❌ Error: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  Future<void> removePermanentBlock(String type, String value) async {
+    try {
+      debugPrint(
+          '🔵 SupabaseService.removePermanentBlock - Type: $type, Value: $value');
+      if (type == 'app') {
+        await client
+            .from('permanent_blocks')
+            .delete()
+            .eq('type', 'app')
+            .eq('package_name', value);
+      } else {
+        await client
+            .from('permanent_blocks')
+            .delete()
+            .eq('type', 'website')
+            .eq('domain', value);
+      }
+      debugPrint(
+          '✅ SupabaseService.removePermanentBlock - Removed successfully');
+    } catch (e, stackTrace) {
+      debugPrint('❌ SupabaseService.removePermanentBlock - Error: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
   // Task history operations
   Future<void> archiveCompletedTask(Map<String, dynamic> task) async {
     try {

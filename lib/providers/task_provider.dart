@@ -15,6 +15,10 @@ class TaskProvider extends ChangeNotifier {
   List<String> _defaultRestrictedApps = [];
   List<String> _defaultRestrictedWebsites = [];
 
+  // Store permanently blocked apps/websites (always active)
+  List<String> _permanentlyBlockedApps = [];
+  List<String> _permanentlyBlockedWebsites = [];
+
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
 
@@ -62,19 +66,31 @@ class TaskProvider extends ChangeNotifier {
 
   /// Trigger a re-sync after task changes
   Future<void> _resync() async {
-    await syncRestrictions(_defaultRestrictedApps, _defaultRestrictedWebsites);
+    await syncRestrictions(
+      _defaultRestrictedApps,
+      _defaultRestrictedWebsites,
+      _permanentlyBlockedApps,
+      _permanentlyBlockedWebsites,
+    );
   }
 
   /// Syncs current task restrictions to native Android service
   /// Call this whenever tasks change or default restrictions change
-  Future<void> syncRestrictions(List<String> defaultRestrictedApps,
-      List<String> defaultRestrictedWebsites) async {
+  /// Permanently blocked apps are ALWAYS blocked, regardless of tasks
+  Future<void> syncRestrictions(
+    List<String> defaultRestrictedApps,
+    List<String> defaultRestrictedWebsites,
+    List<String> permanentlyBlockedApps,
+    List<String> permanentlyBlockedWebsites,
+  ) async {
     debugPrint(
         '🔄 TaskProvider.syncRestrictions - ========== SYNCING RESTRICTIONS ==========');
 
-    // Store the default restrictions
+    // Store the restrictions
     _defaultRestrictedApps = defaultRestrictedApps;
     _defaultRestrictedWebsites = defaultRestrictedWebsites;
+    _permanentlyBlockedApps = permanentlyBlockedApps;
+    _permanentlyBlockedWebsites = permanentlyBlockedWebsites;
 
     // Get all active or overdue tasks
     final relevantTasks = _tasks
@@ -87,6 +103,15 @@ class TaskProvider extends ChangeNotifier {
     final appsToRestrict = <String>{};
     final websitesToRestrict = <String>{};
 
+    // ALWAYS add permanently blocked apps/websites first
+    appsToRestrict.addAll(permanentlyBlockedApps);
+    websitesToRestrict.addAll(permanentlyBlockedWebsites);
+    debugPrint(
+        '🔒 Added ${permanentlyBlockedApps.length} permanently blocked apps');
+    debugPrint(
+        '🔒 Added ${permanentlyBlockedWebsites.length} permanently blocked websites');
+
+    // Add task-based restrictions
     for (var task in relevantTasks) {
       debugPrint('   Task: ${task.title} (mode: ${task.restrictionMode})');
       if (task.restrictionMode == 'default') {
@@ -109,14 +134,19 @@ class TaskProvider extends ChangeNotifier {
     if (websitesToRestrict.isNotEmpty) {
       debugPrint('   Websites: ${websitesToRestrict.join(", ")}');
     }
-    debugPrint('🔒 Restrictions should be active: $shouldRestrictionsBeActive');
+
+    // Restrictions are active if there are active tasks OR permanent blocks exist
+    final shouldBeActive = shouldRestrictionsBeActive ||
+        permanentlyBlockedApps.isNotEmpty ||
+        permanentlyBlockedWebsites.isNotEmpty;
+    debugPrint('🔒 Restrictions should be active: $shouldBeActive');
 
     try {
       debugPrint('📡 Sending to native Android service...');
       await _restrictionService.updateRestrictions(
         appsToRestrict.toList(),
         websitesToRestrict.toList(),
-        shouldRestrictionsBeActive,
+        shouldBeActive,
       );
       debugPrint(
           '✅ TaskProvider.syncRestrictions - Successfully synced to native!');
@@ -284,7 +314,7 @@ class TaskProvider extends ChangeNotifier {
         _tasks[i].completedAt = null;
       }
       debugPrint(
-          '🟢 Task completion toggled: ${wasCompleted} -> ${_tasks[i].completed}');
+          '🟢 Task completion toggled: $wasCompleted -> ${_tasks[i].completed}');
       notifyListeners();
 
       try {

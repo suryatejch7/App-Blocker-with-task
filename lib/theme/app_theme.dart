@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Colors
+  // Dark Theme Colors
   static const Color black = Color(0xFF000000);
   static const Color blue = Color(0xFF4A90E2);
   static const Color yellow = Color(0xFFFFD700);
@@ -9,6 +9,21 @@ class AppTheme {
   static const Color mediumGray = Color(0xFF2A2A2A);
   static const Color lightGray = Color(0xFF3A3A3A);
   static const Color white = Color(0xFFFFFFFF);
+
+  // Light Theme Colors
+  static const Color lightBackground = Color(0xFFF5F5F5);
+  static const Color lightSurface = Color(0xFFFFFFFF);
+  static const Color lightCard = Color(0xFFFFFFFF);
+  static const Color lightBorder = Color(0xFFE0E0E0);
+  static const Color lightText = Color(0xFF1A1A1A);
+  static const Color lightTextSecondary = Color(0xFF666666);
+  static const Color orange =
+      Color(0xFFFF9500); // Replaces yellow in light mode
+
+  // Helper to get accent color based on brightness
+  static Color accentColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark ? yellow : orange;
+  }
 
   // Theme Data
   static ThemeData get darkTheme {
@@ -25,12 +40,10 @@ class AppTheme {
         primary: blue,
         secondary: yellow,
         surface: darkGray,
-        background: black,
         error: Colors.red,
         onPrimary: white,
         onSecondary: black,
         onSurface: white,
-        onBackground: white,
       ),
 
       // AppBar theme
@@ -161,20 +174,20 @@ class AppTheme {
 
       // Checkbox theme
       checkboxTheme: CheckboxThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return blue;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.all(yellow),
+        checkColor: WidgetStateProperty.all(yellow),
         side: const BorderSide(color: blue, width: 2),
       ),
 
       // Radio theme
       radioTheme: RadioThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return blue;
           }
           return white.withOpacity(0.5);
@@ -183,14 +196,14 @@ class AppTheme {
 
       // Switch theme
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return yellow;
           }
           return white.withOpacity(0.5);
         }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return blue;
           }
           return lightGray;
@@ -200,6 +213,200 @@ class AppTheme {
       // Divider theme
       dividerTheme: DividerThemeData(
         color: lightGray,
+        thickness: 1,
+        space: 1,
+      ),
+    );
+  }
+
+  // Light Theme
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      primaryColor: blue,
+      scaffoldBackgroundColor: lightBackground,
+      cardColor: lightCard,
+      dividerColor: lightBorder,
+
+      // Color scheme
+      colorScheme: const ColorScheme.light(
+        primary: blue,
+        secondary: orange,
+        surface: lightSurface,
+        error: Colors.red,
+        onPrimary: white,
+        onSecondary: white,
+        onSurface: lightText,
+      ),
+
+      // AppBar theme
+      appBarTheme: const AppBarTheme(
+        backgroundColor: lightSurface,
+        foregroundColor: lightText,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          color: lightText,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        iconTheme: IconThemeData(color: blue),
+      ),
+
+      // Card theme
+      cardTheme: CardThemeData(
+        color: lightCard,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: lightBorder, width: 1),
+        ),
+      ),
+
+      // Text theme
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+            color: lightText, fontSize: 32, fontWeight: FontWeight.bold),
+        displayMedium: TextStyle(
+            color: lightText, fontSize: 28, fontWeight: FontWeight.bold),
+        displaySmall: TextStyle(
+            color: lightText, fontSize: 24, fontWeight: FontWeight.bold),
+        headlineMedium: TextStyle(
+            color: lightText, fontSize: 20, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(
+            color: lightText, fontSize: 18, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(
+            color: lightText, fontSize: 16, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(color: lightText, fontSize: 16),
+        bodyMedium: TextStyle(color: lightText, fontSize: 14),
+        labelLarge: TextStyle(
+            color: lightText, fontSize: 14, fontWeight: FontWeight.w500),
+      ),
+
+      // Input decoration theme
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: lightSurface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: lightBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: lightBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: blue, width: 2),
+        ),
+        labelStyle: const TextStyle(color: lightTextSecondary),
+        hintStyle: TextStyle(color: lightTextSecondary.withOpacity(0.7)),
+      ),
+
+      // Elevated button theme
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: blue,
+          foregroundColor: white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          elevation: 2,
+        ),
+      ),
+
+      // Text button theme
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: blue,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+      ),
+
+      // Floating action button theme
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: blue,
+        foregroundColor: white,
+        elevation: 4,
+      ),
+
+      // Icon theme
+      iconTheme: const IconThemeData(
+        color: blue,
+        size: 24,
+      ),
+
+      // Bottom navigation bar theme
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: lightSurface,
+        selectedItemColor: blue,
+        unselectedItemColor: lightTextSecondary,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+
+      // Dialog theme
+      dialogTheme: DialogThemeData(
+        backgroundColor: lightSurface,
+        titleTextStyle: const TextStyle(
+          color: lightText,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        contentTextStyle: const TextStyle(
+          color: lightText,
+          fontSize: 16,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: lightBorder),
+        ),
+      ),
+
+      // Checkbox theme
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return blue;
+          }
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(white),
+        side: const BorderSide(color: blue, width: 2),
+      ),
+
+      // Radio theme
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return blue;
+          }
+          return lightTextSecondary;
+        }),
+      ),
+
+      // Switch theme
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return blue;
+          }
+          return lightTextSecondary;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return blue.withOpacity(0.5);
+          }
+          return lightBorder;
+        }),
+      ),
+
+      // Divider theme
+      dividerTheme: DividerThemeData(
+        color: lightBorder,
         thickness: 1,
         space: 1,
       ),

@@ -19,16 +19,22 @@ class _HomeTabsState extends State<HomeTabs> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppTheme.black : AppTheme.lightBackground;
+    final textColor = isDark ? AppTheme.white : AppTheme.lightText;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+
     return Scaffold(
-      backgroundColor: AppTheme.black,
-  appBar: AppBar(
-        backgroundColor: AppTheme.black,
+      backgroundColor: backgroundColor,
+      appBar: AppBar(
+        backgroundColor: backgroundColor,
         elevation: 0,
         centerTitle: false,
         toolbarHeight: 100, // Increased height for better spacing
         titleSpacing: 0,
         automaticallyImplyLeading: false,
-  flexibleSpace: SafeArea(
+        flexibleSpace: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Row(
@@ -42,8 +48,8 @@ class _HomeTabsState extends State<HomeTabs> {
                           children: [
                             Text(
                               'My Tasks',
-                              style: const TextStyle(
-                                color: AppTheme.white,
+                              style: TextStyle(
+                                color: textColor,
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -53,7 +59,7 @@ class _HomeTabsState extends State<HomeTabs> {
                               DateFormat('EEEE, MMMM d, yyyy')
                                   .format(DateTime.now()),
                               style: TextStyle(
-                                color: AppTheme.white.withOpacity(0.6),
+                                color: subtextColor,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -66,8 +72,8 @@ class _HomeTabsState extends State<HomeTabs> {
                           children: [
                             Text(
                               'Restrictions',
-                              style: const TextStyle(
-                                color: AppTheme.white,
+                              style: TextStyle(
+                                color: textColor,
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -76,7 +82,7 @@ class _HomeTabsState extends State<HomeTabs> {
                             Text(
                               'Default restriction list',
                               style: TextStyle(
-                                color: AppTheme.white.withOpacity(0.6),
+                                color: subtextColor,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -88,9 +94,9 @@ class _HomeTabsState extends State<HomeTabs> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.settings_outlined,
-                        color: AppTheme.white,
+                        color: textColor,
                         size: 26,
                       ),
                       onPressed: () => context.push('/settings'),
@@ -107,7 +113,9 @@ class _HomeTabsState extends State<HomeTabs> {
           preferredSize: const Size.fromHeight(2),
           child: Container(
             height: 1.5,
-            color: AppTheme.lightGray.withOpacity(0.65),
+            color: isDark
+                ? AppTheme.lightGray.withOpacity(0.65)
+                : AppTheme.lightBorder,
           ),
         ),
       ),
@@ -175,16 +183,16 @@ class _TasksTab extends StatelessWidget {
             .where((entry) => entry.value.isNotEmpty)
             .toList();
 
-        final completedTasks = allTasks
-            .where((task) => task.completed)
-            .toList()
+        final completedTasks = allTasks.where((task) => task.completed).toList()
           ..sort((a, b) {
             final aTime = a.completedAt ?? a.endTime;
             final bTime = b.completedAt ?? b.endTime;
             return bTime.compareTo(aTime);
           });
 
-        if (todayTasks.isEmpty && futureTaskEntries.isEmpty && completedTasks.isEmpty) {
+        if (todayTasks.isEmpty &&
+            futureTaskEntries.isEmpty &&
+            completedTasks.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -253,10 +261,9 @@ class _TasksTab extends StatelessWidget {
                     ),
                     Text(
                       '${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'}',
-                      style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.white.withOpacity(0.6),
-                              ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.white.withOpacity(0.6),
+                          ),
                     ),
                   ],
                 ),
@@ -290,7 +297,9 @@ class _TasksTab extends StatelessWidget {
           ],
         );
 
-        if (todayTasks.isEmpty && futureTaskEntries.isEmpty && completedTasks.isEmpty) {
+        if (todayTasks.isEmpty &&
+            futureTaskEntries.isEmpty &&
+            completedTasks.isEmpty) {
           return RefreshIndicator(
             onRefresh: () => taskProvider.refresh(),
             child: ListView(
@@ -318,7 +327,8 @@ class _TasksTab extends StatelessWidget {
                           style: Theme.of(context)
                               .textTheme
                               .bodyLarge
-                              ?.copyWith(color: AppTheme.white.withOpacity(0.6)),
+                              ?.copyWith(
+                                  color: AppTheme.white.withOpacity(0.6)),
                         ),
                       ],
                     ),
@@ -329,7 +339,8 @@ class _TasksTab extends StatelessWidget {
           );
         }
 
-        return RefreshIndicator(onRefresh: () => taskProvider.refresh(), child: listView);
+        return RefreshIndicator(
+            onRefresh: () => taskProvider.refresh(), child: listView);
       },
     );
   }
@@ -347,13 +358,22 @@ class _TaskCard extends StatelessWidget {
     final isActive = task.isActive;
     final isOverdue = task.isOverdue;
 
-    final borderColor = isOverdue ? Colors.red : AppTheme.lightGray;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
+    final textColor = isDark ? AppTheme.white : AppTheme.lightText;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+    final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
+
+    final borderColor = isOverdue
+        ? Colors.red
+        : (isDark ? AppTheme.lightGray : AppTheme.lightBorder);
     final borderWidth = isOverdue ? 1.6 : 1.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppTheme.darkGray,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: borderWidth),
       ),
@@ -376,14 +396,11 @@ class _TaskCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: task.completed
-                              ? AppTheme.blue
-                              : AppTheme.white.withOpacity(0.5),
+                          color: task.completed ? AppTheme.blue : subtextColor,
                           width: 2,
                         ),
-                        color: task.completed
-                            ? AppTheme.blue
-                            : Colors.transparent,
+                        color:
+                            task.completed ? AppTheme.blue : Colors.transparent,
                       ),
                       child: task.completed
                           ? const Icon(
@@ -398,21 +415,18 @@ class _TaskCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       task.title,
-                      style:
-                          Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                decoration: task.completed
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                                color: task.completed
-                                    ? AppTheme.white.withOpacity(0.6)
-                                    : AppTheme.white,
-                              ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            decoration: task.completed
+                                ? TextDecoration.lineThrough
+                                : null,
+                            color: task.completed ? subtextColor : textColor,
+                          ),
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right,
-                    color: AppTheme.white,
+                    color: textColor,
                     size: 20,
                   ),
                 ],
@@ -423,17 +437,13 @@ class _TaskCard extends StatelessWidget {
                   Icon(
                     Icons.access_time,
                     size: 14,
-                    color: isOverdue
-                        ? Colors.red
-                        : AppTheme.white.withOpacity(0.6),
+                    color: isOverdue ? Colors.red : subtextColor,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     '${timeFormat.format(task.startTime)} - ${timeFormat.format(task.endTime)}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isOverdue
-                              ? Colors.red
-                              : AppTheme.white.withOpacity(0.6),
+                          color: isOverdue ? Colors.red : subtextColor,
                         ),
                   ),
                 ],
@@ -443,7 +453,7 @@ class _TaskCard extends StatelessWidget {
                 Text(
                   task.description!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.white.withOpacity(0.7),
+                        color: subtextColor,
                       ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -455,7 +465,7 @@ class _TaskCard extends StatelessWidget {
                   if (task.repeatSettings != 'none')
                     _TaskChip(
                       label: task.repeatSettings,
-                      color: AppTheme.yellow,
+                      color: accentColor,
                       icon: Icons.repeat,
                     ),
                   if (task.repeatSettings != 'none') const SizedBox(width: 8),
@@ -470,7 +480,7 @@ class _TaskCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     _TaskChip(
                       label: 'Active',
-                      color: AppTheme.yellow,
+                      color: accentColor,
                     ),
                   ],
                 ],
@@ -560,14 +570,27 @@ class _RestrictionsTab extends StatefulWidget {
 class _RestrictionsTabState extends State<_RestrictionsTab> {
   // 0 = Apps, 1 = Websites
   int _selectedIndex = 0;
+  // false = Default (task-based), true = Permanent (always blocked)
+  bool _showPermanent = false;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+
     return Consumer<RestrictionsProvider>(
       builder: (context, provider, child) {
-        final apps = provider.defaultRestrictedApps;
-        final websites = provider.defaultRestrictedWebsites;
+        final defaultApps = provider.defaultRestrictedApps;
+        final defaultWebsites = provider.defaultRestrictedWebsites;
+        final permanentApps = provider.permanentlyBlockedApps;
+        final permanentWebsites = provider.permanentlyBlockedWebsites;
+
         final isApps = _selectedIndex == 0;
+
+        // Select the appropriate list based on mode
+        final apps = _showPermanent ? permanentApps : defaultApps;
+        final websites = _showPermanent ? permanentWebsites : defaultWebsites;
         final items = isApps ? apps : websites;
 
         if (provider.isLoading) {
@@ -579,9 +602,102 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
         return Column(
           children: [
             const SizedBox(height: 8),
+            // Mode selector: Default vs Permanent
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkGray : AppTheme.lightSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? AppTheme.lightGray : AppTheme.lightBorder,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _showPermanent = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: !_showPermanent
+                                ? AppTheme.blue
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.timer_outlined,
+                                size: 16,
+                                color: !_showPermanent
+                                    ? AppTheme.white
+                                    : subtextColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Task-Based',
+                                style: TextStyle(
+                                  color: !_showPermanent
+                                      ? AppTheme.white
+                                      : subtextColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _showPermanent = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _showPermanent
+                                ? Colors.red
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.block,
+                                size: 16,
+                                color: _showPermanent
+                                    ? AppTheme.white
+                                    : subtextColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Always Block',
+                                style: TextStyle(
+                                  color: _showPermanent
+                                      ? AppTheme.white
+                                      : subtextColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Apps/Websites toggle
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
                   Expanded(
@@ -611,22 +727,47 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
                       onRefresh: () => provider.refresh(),
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         children: [
                           SizedBox(
-                            height: MediaQuery.of(context).size.height - 200,
+                            height: MediaQuery.of(context).size.height - 280,
                             child: Center(
-                              child: Text(
-                                isApps
-                                    ? 'No apps in default list'
-                                    : 'No websites in default list',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: AppTheme.white.withOpacity(0.6),
-                                    ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _showPermanent
+                                        ? Icons.block
+                                        : Icons.timer_outlined,
+                                    size: 48,
+                                    color: subtextColor,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _showPermanent
+                                        ? (isApps
+                                            ? 'No permanently blocked apps'
+                                            : 'No permanently blocked websites')
+                                        : (isApps
+                                            ? 'No apps in default list'
+                                            : 'No websites in default list'),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(color: subtextColor),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _showPermanent
+                                        ? 'These will be blocked 24/7'
+                                        : 'These are blocked during active tasks',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: subtextColor),
+                                  ),
+                                ],
                               ),
                             ),
                           )
@@ -645,11 +786,20 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
                           return _RestrictionItemCard(
                             isApp: isApps,
                             value: value,
+                            isPermanent: _showPermanent,
                             onRemove: () {
-                              if (isApps) {
-                                provider.removeApp(value);
+                              if (_showPermanent) {
+                                if (isApps) {
+                                  provider.removePermanentApp(value);
+                                } else {
+                                  provider.removePermanentWebsite(value);
+                                }
                               } else {
-                                provider.removeWebsite(value);
+                                if (isApps) {
+                                  provider.removeApp(value);
+                                } else {
+                                  provider.removeWebsite(value);
+                                }
                               }
                             },
                           );
@@ -668,19 +818,25 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _selectedIndex == 0
-                      ? _showAddAppsDialog(context, provider)
-                      : _showAddWebsiteDialog(context, provider),
+                      ? _showAddAppsDialog(context, provider, _showPermanent)
+                      : _showAddWebsiteDialog(
+                          context, provider, _showPermanent),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.blue,
+                    backgroundColor:
+                        _showPermanent ? Colors.red : AppTheme.blue,
                     foregroundColor: AppTheme.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.add),
+                  icon: Icon(_showPermanent ? Icons.block : Icons.add),
                   label: Text(
-                    _selectedIndex == 0 ? 'Add Apps' : 'Add Websites',
+                    _showPermanent
+                        ? (_selectedIndex == 0
+                            ? 'Block App Forever'
+                            : 'Block Website Forever')
+                        : (_selectedIndex == 0 ? 'Add Apps' : 'Add Websites'),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -695,8 +851,8 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
     );
   }
 
-  Future<void> _showAddAppsDialog(
-      BuildContext context, RestrictionsProvider provider) async {
+  Future<void> _showAddAppsDialog(BuildContext context,
+      RestrictionsProvider provider, bool isPermanent) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -711,23 +867,35 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
 
       Navigator.pop(context); // close loading
 
+      // Exclude already blocked apps based on mode
+      final alreadyBlocked = isPermanent
+          ? provider.permanentlyBlockedApps
+          : provider.defaultRestrictedApps;
+
       final selectedApps = await showDialog<List<String>>(
         context: context,
         builder: (context) => _DefaultAppSelectorDialog(
           installedApps: installedApps,
-          alreadyRestricted: provider.defaultRestrictedApps,
+          alreadyRestricted: alreadyBlocked,
+          isPermanent: isPermanent,
         ),
       );
 
       if (selectedApps != null && selectedApps.isNotEmpty) {
         for (final app in selectedApps) {
-          provider.addApp(app);
+          if (isPermanent) {
+            provider.addPermanentApp(app);
+          } else {
+            provider.addApp(app);
+          }
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Added ${selectedApps.length} app(s)'),
-              backgroundColor: AppTheme.blue,
+              content: Text(isPermanent
+                  ? 'Permanently blocked ${selectedApps.length} app(s)'
+                  : 'Added ${selectedApps.length} app(s)'),
+              backgroundColor: isPermanent ? Colors.red : AppTheme.blue,
             ),
           );
         }
@@ -745,15 +913,15 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
     }
   }
 
-  Future<void> _showAddWebsiteDialog(
-      BuildContext context, RestrictionsProvider provider) async {
+  Future<void> _showAddWebsiteDialog(BuildContext context,
+      RestrictionsProvider provider, bool isPermanent) async {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Website'),
+        title: Text(isPermanent ? 'Block Website Forever' : 'Add Website'),
         content: Form(
           key: formKey,
           child: Column(
@@ -793,19 +961,28 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
                 Navigator.pop(context, controller.text.trim());
               }
             },
-            child: const Text('Add'),
+            style: isPermanent
+                ? ElevatedButton.styleFrom(backgroundColor: Colors.red)
+                : null,
+            child: Text(isPermanent ? 'Block Forever' : 'Add'),
           ),
         ],
       ),
     );
 
     if (result != null && result.isNotEmpty) {
-      provider.addWebsite(result);
+      if (isPermanent) {
+        provider.addPermanentWebsite(result);
+      } else {
+        provider.addWebsite(result);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Added ${provider.extractDomain(result)}'),
-            backgroundColor: AppTheme.blue,
+            content: Text(isPermanent
+                ? 'Permanently blocked ${provider.extractDomain(result)}'
+                : 'Added ${provider.extractDomain(result)}'),
+            backgroundColor: isPermanent ? Colors.red : AppTheme.blue,
           ),
         );
       }
@@ -828,11 +1005,15 @@ class _RestrictionsToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor =
-        selected ? AppTheme.blue : AppTheme.lightGray.withOpacity(0.8);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final defaultBorder =
+        isDark ? AppTheme.lightGray.withOpacity(0.8) : AppTheme.lightBorder;
+    final defaultTextColor = isDark ? AppTheme.white : AppTheme.lightText;
+
+    final borderColor = selected ? AppTheme.blue : defaultBorder;
     final bgColor =
         selected ? AppTheme.blue.withOpacity(0.12) : Colors.transparent;
-    final textColor = selected ? AppTheme.blue : AppTheme.white;
+    final textColor = selected ? AppTheme.blue : defaultTextColor;
 
     return GestureDetector(
       onTap: onTap,
@@ -865,22 +1046,34 @@ class _RestrictionsToggleButton extends StatelessWidget {
 class _RestrictionItemCard extends StatelessWidget {
   final bool isApp;
   final String value;
+  final bool isPermanent;
   final VoidCallback onRemove;
 
   const _RestrictionItemCard({
     required this.isApp,
     required this.value,
+    this.isPermanent = false,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
+    final borderColor = isPermanent
+        ? Colors.red.withOpacity(0.5)
+        : (isDark ? AppTheme.lightGray : AppTheme.lightBorder);
+    final textColor = isDark ? AppTheme.white : AppTheme.lightText;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+    final accentColor = isPermanent ? Colors.red : AppTheme.blue;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.darkGray,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.lightGray),
+        border: Border.all(color: borderColor, width: isPermanent ? 1.5 : 1),
       ),
       child: Row(
         children: [
@@ -888,12 +1081,14 @@ class _RestrictionItemCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.blue.withOpacity(0.12),
+              color: accentColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              isApp ? Icons.phone_android : Icons.public,
-              color: AppTheme.blue,
+              isPermanent
+                  ? Icons.block
+                  : (isApp ? Icons.phone_android : Icons.public),
+              color: accentColor,
             ),
           ),
           const SizedBox(width: 12),
@@ -901,20 +1096,45 @@ class _RestrictionItemCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.white,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        value,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                    ),
+                    if (isPermanent) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          '24/7',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  value,
+                  isPermanent ? 'Always blocked' : value,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.white.withOpacity(0.6),
+                        color: subtextColor,
                       ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -948,10 +1168,12 @@ class _RestrictionItemCard extends StatelessWidget {
 class _DefaultAppSelectorDialog extends StatefulWidget {
   final List<Map<String, dynamic>> installedApps;
   final List<String> alreadyRestricted;
+  final bool isPermanent;
 
   const _DefaultAppSelectorDialog({
     required this.installedApps,
     required this.alreadyRestricted,
+    this.isPermanent = false,
   });
 
   @override
@@ -965,6 +1187,11 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+    final accentColor = widget.isPermanent ? Colors.red : AppTheme.blue;
+
     final filteredApps = widget.installedApps.where((app) {
       final packageName = app['packageName'] as String;
       final appName = app['name'] as String;
@@ -983,19 +1210,51 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
           children: [
             Row(
               children: [
-                const Icon(Icons.apps, color: AppTheme.yellow),
-                const SizedBox(width: 12),
-                Text(
-                  'Select Apps to Block',
-                  style: Theme.of(context).textTheme.titleLarge,
+                Icon(
+                  widget.isPermanent ? Icons.block : Icons.apps,
+                  color: accentColor,
                 ),
-                const Spacer(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.isPermanent
+                        ? 'Block Apps Forever'
+                        : 'Select Apps to Block',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
+            if (widget.isPermanent) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber,
+                        color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'These apps will be blocked 24/7, regardless of tasks',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             TextField(
               decoration: const InputDecoration(
@@ -1017,6 +1276,7 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
 
                   return CheckboxListTile(
                     value: isSelected,
+                    activeColor: accentColor,
                     onChanged: (selected) {
                       setState(() {
                         if (selected == true) {
@@ -1031,11 +1291,10 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
                       packageName,
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.white.withAlpha(153),
+                        color: subtextColor,
                       ),
                     ),
-                    secondary:
-                        const Icon(Icons.android, color: AppTheme.blue),
+                    secondary: Icon(Icons.android, color: accentColor),
                   );
                 },
               ),
@@ -1062,7 +1321,13 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
                                 context,
                                 _selectedApps.toList(),
                               ),
-                      child: const Text('Add Selected'),
+                      style: widget.isPermanent
+                          ? ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red)
+                          : null,
+                      child: Text(widget.isPermanent
+                          ? 'Block Forever'
+                          : 'Add Selected'),
                     ),
                   ],
                 ),
