@@ -194,6 +194,11 @@ class _TasksTab extends StatelessWidget {
         if (todayTasks.isEmpty &&
             futureTaskEntries.isEmpty &&
             completedTasks.isEmpty) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final subtextColor = isDark
+              ? AppTheme.white.withOpacity(0.6)
+              : AppTheme.lightTextSecondary;
+
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -212,7 +217,7 @@ class _TasksTab extends StatelessWidget {
                 Text(
                   'Tap + to create your first task',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppTheme.white.withOpacity(0.6),
+                        color: subtextColor,
                       ),
                 ),
               ],
@@ -252,6 +257,11 @@ class _TasksTab extends StatelessWidget {
         if (todayTasks.isEmpty &&
             futureTaskEntries.isEmpty &&
             completedTasks.isEmpty) {
+          final isDark2 = Theme.of(context).brightness == Brightness.dark;
+          final subtextColor2 = isDark2
+              ? AppTheme.white.withOpacity(0.6)
+              : AppTheme.lightTextSecondary;
+
           return RefreshIndicator(
             onRefresh: () => taskProvider.refresh(),
             child: ListView(
@@ -279,8 +289,7 @@ class _TasksTab extends StatelessWidget {
                           style: Theme.of(context)
                               .textTheme
                               .bodyLarge
-                              ?.copyWith(
-                                  color: AppTheme.white.withOpacity(0.6)),
+                              ?.copyWith(color: subtextColor2),
                         ),
                       ],
                     ),
@@ -830,9 +839,8 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _selectedIndex == 0
-                      ? _showAddAppsDialog(context, provider, _showPermanent)
-                      : _showAddWebsiteDialog(
-                          context, provider, _showPermanent),
+                      ? _showAddAppsDialog(provider, _showPermanent)
+                      : _showAddWebsiteDialog(provider, _showPermanent),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         _showPermanent ? Colors.red : AppTheme.blue,
@@ -863,10 +871,11 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
     );
   }
 
-  Future<void> _showAddAppsDialog(BuildContext context,
+  Future<void> _showAddAppsDialog(
       RestrictionsProvider provider, bool isPermanent) async {
+    final ctx = context;
     showDialog(
-      context: context,
+      context: ctx,
       barrierDismissible: false,
       builder: (context) => const Center(
         child: CircularProgressIndicator(color: AppTheme.blue),
@@ -877,16 +886,17 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
       final installedApps = await provider.getInstalledApps();
       if (!mounted) return;
 
-      Navigator.pop(context); // close loading
+      Navigator.of(ctx).pop(); // close loading
 
       // Exclude already blocked apps based on mode
       final alreadyBlocked = isPermanent
           ? provider.permanentlyBlockedApps
           : provider.defaultRestrictedApps;
 
+      if (!mounted) return;
       final selectedApps = await showDialog<List<String>>(
-        context: context,
-        builder: (context) => _DefaultAppSelectorDialog(
+        context: ctx,
+        builder: (dialogContext) => _DefaultAppSelectorDialog(
           installedApps: installedApps,
           alreadyRestricted: alreadyBlocked,
           isPermanent: isPermanent,
@@ -901,38 +911,37 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
             provider.addApp(app);
           }
         }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(isPermanent
-                  ? 'Permanently blocked ${selectedApps.length} app(s)'
-                  : 'Added ${selectedApps.length} app(s)'),
-              backgroundColor: isPermanent ? Colors.red : AppTheme.blue,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // close loading
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!mounted) return;
+        ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(
-            content: Text('Error loading apps: $e'),
-            backgroundColor: Colors.red,
+            content: Text(isPermanent
+                ? 'Permanently blocked ${selectedApps.length} app(s)'
+                : 'Added ${selectedApps.length} app(s)'),
+            backgroundColor: isPermanent ? Colors.red : AppTheme.blue,
           ),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(ctx).pop(); // close loading
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text('Error loading apps: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  Future<void> _showAddWebsiteDialog(BuildContext context,
+  Future<void> _showAddWebsiteDialog(
       RestrictionsProvider provider, bool isPermanent) async {
+    final ctx = context;
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
     final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: ctx,
+      builder: (dialogContext) => AlertDialog(
         title: Text(isPermanent ? 'Block Website Forever' : 'Add Website'),
         content: Form(
           key: formKey,
@@ -942,7 +951,7 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
             children: [
               Text(
                 'Enter domain or URL:',
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(dialogContext).textTheme.bodyMedium,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -964,13 +973,13 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
-                Navigator.pop(context, controller.text.trim());
+                Navigator.pop(dialogContext, controller.text.trim());
               }
             },
             style: isPermanent
@@ -988,16 +997,15 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
       } else {
         provider.addWebsite(result);
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isPermanent
-                ? 'Permanently blocked ${provider.extractDomain(result)}'
-                : 'Added ${provider.extractDomain(result)}'),
-            backgroundColor: isPermanent ? Colors.red : AppTheme.blue,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(isPermanent
+              ? 'Permanently blocked ${provider.extractDomain(result)}'
+              : 'Added ${provider.extractDomain(result)}'),
+          backgroundColor: isPermanent ? Colors.red : AppTheme.blue,
+        ),
+      );
     }
   }
 }

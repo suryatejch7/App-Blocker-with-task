@@ -57,49 +57,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     super.dispose();
   }
 
-  Future<void> _selectDateTime(bool isStartTime) async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: isStartTime ? _startTime : _endTime,
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (date != null && mounted) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime:
-            TimeOfDay.fromDateTime(isStartTime ? _startTime : _endTime),
-      );
-
-      if (time != null) {
-        setState(() {
-          final newDateTime = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
-          );
-
-          if (isStartTime) {
-            _startTime = newDateTime;
-            // Ensure end time is after start time
-            if (_endTime.isBefore(_startTime)) {
-              _endTime = _startTime.add(const Duration(hours: 1));
-            }
-          } else {
-            _endTime = newDateTime;
-            // Ensure end time is after start time
-            if (_endTime.isBefore(_startTime)) {
-              _startTime = _endTime.subtract(const Duration(hours: 1));
-            }
-          }
-        });
-      }
-    }
-  }
-
   Future<void> _selectDate() async {
     final date = await showDatePicker(
       context: context,

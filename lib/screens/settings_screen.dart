@@ -253,48 +253,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
     );
   }
-
-  void _showClearDataDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear All Data?'),
-        content: const Text(
-          'This will permanently delete all your tasks and restrictions. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              // Clear all data
-              Navigator.pop(context);
-              try {
-                // TODO: Add proper data clearing logic when provider supports it
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Data clearing not yet implemented'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error clearing data: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Clear Data'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _PermissionCard extends StatelessWidget {

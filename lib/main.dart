@@ -14,6 +14,8 @@ import 'screens/restrictions_screen.dart';
 import 'screens/edit_task_screen.dart';
 import 'models/task.dart';
 import 'services/supabase_service.dart';
+import 'services/offline_cache_service.dart';
+import 'services/connectivity_service.dart';
 import 'package:go_router/go_router.dart';
 import 'theme/app_theme.dart';
 
@@ -21,6 +23,26 @@ void main() async {
   debugPrint('🚀 ========== APP STARTING ==========');
   WidgetsFlutterBinding.ensureInitialized();
   debugPrint('✅ Flutter binding initialized');
+
+  // Initialize offline cache service (Hive)
+  try {
+    debugPrint('🔵 Initializing offline cache...');
+    await OfflineCacheService().initialize();
+    debugPrint('✅ Offline cache initialized');
+  } catch (e, stackTrace) {
+    debugPrint('❌ Failed to initialize offline cache: $e');
+    debugPrint('📍 Stack trace: $stackTrace');
+  }
+
+  // Initialize connectivity service
+  try {
+    debugPrint('🔵 Initializing connectivity service...');
+    await ConnectivityService().initialize();
+    debugPrint('✅ Connectivity service initialized');
+  } catch (e, stackTrace) {
+    debugPrint('❌ Failed to initialize connectivity service: $e');
+    debugPrint('📍 Stack trace: $stackTrace');
+  }
 
   // Initialize Supabase
   try {

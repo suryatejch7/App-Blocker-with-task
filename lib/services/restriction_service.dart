@@ -10,7 +10,7 @@ class RestrictionService {
       final bool result = await platform.invokeMethod('requestPermissions');
       return result;
     } catch (e) {
-      print('Error requesting permissions: $e');
+      debugPrint('Error requesting permissions: $e');
       return false;
     }
   }
@@ -21,7 +21,7 @@ class RestrictionService {
       final bool result = await platform.invokeMethod('checkPermissions');
       return result;
     } catch (e) {
-      print('Error checking permissions: $e');
+      debugPrint('Error checking permissions: $e');
       return false;
     }
   }
@@ -71,7 +71,7 @@ class RestrictionService {
           await platform.invokeMethod('getInstalledApps');
       return result.map((app) => Map<String, String>.from(app)).toList();
     } catch (e) {
-      print('Error getting installed apps: $e');
+      debugPrint('Error getting installed apps: $e');
       return [];
     }
   }
@@ -81,7 +81,7 @@ class RestrictionService {
     try {
       await platform.invokeMethod('startMonitoring');
     } catch (e) {
-      print('Error starting monitoring: $e');
+      debugPrint('Error starting monitoring: $e');
     }
   }
 
@@ -90,7 +90,7 @@ class RestrictionService {
     try {
       await platform.invokeMethod('stopMonitoring');
     } catch (e) {
-      print('Error stopping monitoring: $e');
+      debugPrint('Error stopping monitoring: $e');
     }
   }
 
@@ -102,7 +102,7 @@ class RestrictionService {
         'tasks': pendingTasks,
       });
     } catch (e) {
-      print('Error showing blocking screen: $e');
+      debugPrint('Error showing blocking screen: $e');
     }
   }
 }
