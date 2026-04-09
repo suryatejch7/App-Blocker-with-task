@@ -13,45 +13,23 @@ import 'screens/add_website_screen.dart';
 import 'screens/restrictions_screen.dart';
 import 'screens/edit_task_screen.dart';
 import 'models/task.dart';
-import 'services/supabase_service.dart';
-import 'services/offline_cache_service.dart';
-import 'services/connectivity_service.dart';
+import 'services/home_widget_service.dart';
 import 'package:go_router/go_router.dart';
 import 'theme/app_theme.dart';
+import 'utils/responsive.dart';
 
 void main() async {
   debugPrint('🚀 ========== APP STARTING ==========');
   WidgetsFlutterBinding.ensureInitialized();
   debugPrint('✅ Flutter binding initialized');
 
-  // Initialize offline cache service (Hive)
+  // Initialize Home Widget Service
   try {
-    debugPrint('🔵 Initializing offline cache...');
-    await OfflineCacheService().initialize();
-    debugPrint('✅ Offline cache initialized');
+    debugPrint('🔵 Initializing home widget service...');
+    await HomeWidgetService().initialize();
+    debugPrint('✅ Home widget service initialized');
   } catch (e, stackTrace) {
-    debugPrint('❌ Failed to initialize offline cache: $e');
-    debugPrint('📍 Stack trace: $stackTrace');
-  }
-
-  // Initialize connectivity service
-  try {
-    debugPrint('🔵 Initializing connectivity service...');
-    await ConnectivityService().initialize();
-    debugPrint('✅ Connectivity service initialized');
-  } catch (e, stackTrace) {
-    debugPrint('❌ Failed to initialize connectivity service: $e');
-    debugPrint('📍 Stack trace: $stackTrace');
-  }
-
-  // Initialize Supabase
-  try {
-    debugPrint('🔵 Initializing Supabase...');
-    await SupabaseService.initialize();
-    debugPrint('✅ Supabase initialized successfully');
-    debugPrint('🌐 Supabase URL: ${SupabaseService.supabaseUrl}');
-  } catch (e, stackTrace) {
-    debugPrint('❌ Failed to initialize Supabase: $e');
+    debugPrint('❌ Failed to initialize home widget service: $e');
     debugPrint('📍 Stack trace: $stackTrace');
   }
 
@@ -125,12 +103,22 @@ class HabitApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp.router(
-            title: 'Productivity Blocker',
+            title: 'Krama',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
             routerConfig: router,
+            builder: (context, child) {
+              final scale = context.responsiveScale;
+              final mediaQuery = MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(scale),
+              );
+              return MediaQuery(
+                data: mediaQuery,
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
           );
         },
       ),

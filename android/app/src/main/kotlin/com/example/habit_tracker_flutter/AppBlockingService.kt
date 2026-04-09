@@ -1,4 +1,4 @@
-package com.example.habit_tracker_flutter
+package com.android.krama
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
@@ -10,6 +10,7 @@ import android.app.ActivityManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -27,6 +28,10 @@ class AppBlockingService : AccessibilityService() {
     private var lastBlockedPackage: String? = null
     private var lastBlockTime: Long = 0
     private val BLOCK_COOLDOWN = 1000L // 1 second cooldown
+    private var lastWindowScanTime: Long = 0
+    private val WINDOW_SCAN_COOLDOWN = 300L // reduce heavy scan frequency
+    private var lastImePackageReadTime: Long = 0
+    private var cachedImePackage: String? = null
     
     // Handler for delayed actions
     private val handler = Handler(Looper.getMainLooper())
@@ -43,13 +48,14 @@ class AppBlockingService : AccessibilityService() {
         private var instance: AppBlockingService? = null
         
         fun updateRestrictions(
+            context: Context,
             apps: List<String>, 
             websites: List<String>, 
             active: Boolean,
             tasks: List<Map<String, Any>> = emptyList(),
             permanentApps: List<String> = emptyList(),
             permanentWebsites: List<String> = emptyList()
-        ) {
+        ): Boolean {
             android.util.Log.d("AppBlockingService", "========== UPDATE RESTRICTIONS CALLED ==========")
             android.util.Log.d("AppBlockingService", "Apps to restrict (${apps.size}): $apps")
             android.util.Log.d("AppBlockingService", "Websites to restrict (${websites.size}): $websites")
@@ -57,6 +63,20 @@ class AppBlockingService : AccessibilityService() {
             android.util.Log.d("AppBlockingService", "Pending tasks: ${tasks.size}")
             android.util.Log.d("AppBlockingService", "Permanently blocked apps: ${permanentApps.size}")
             android.util.Log.d("AppBlockingService", "Service instance exists: ${instance != null}")
+
+            // Always persist latest restrictions so they can be loaded whenever
+            // the accessibility service connects/reconnects.
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .apply {
+                    putString(KEY_RESTRICTED_APPS, JSONArray(apps).toString())
+                    putString(KEY_RESTRICTED_WEBSITES, JSONArray(websites).toString())
+                    putBoolean(KEY_RESTRICTIONS_ACTIVE, active)
+                    putString(KEY_PENDING_TASKS, JSONArray(tasks.map { JSONObject(it) }).toString())
+                    putString(KEY_PERMANENTLY_BLOCKED_APPS, JSONArray(permanentApps).toString())
+                    putString(KEY_PERMANENTLY_BLOCKED_WEBSITES, JSONArray(permanentWebsites).toString())
+                    apply()
+                }
             
             instance?.apply {
                 restrictedApps = apps.toMutableSet()
@@ -67,21 +87,16 @@ class AppBlockingService : AccessibilityService() {
                 permanentlyBlockedWebsites = permanentWebsites.toMutableSet()
                 
                 android.util.Log.d("AppBlockingService", "Updated in-memory lists")
-                
-                // Save to preferences
-                prefs.edit().apply {
-                    putString(KEY_RESTRICTED_APPS, JSONArray(apps).toString())
-                    putString(KEY_RESTRICTED_WEBSITES, JSONArray(websites).toString())
-                    putBoolean(KEY_RESTRICTIONS_ACTIVE, active)
-                    putString(KEY_PENDING_TASKS, JSONArray(tasks.map { JSONObject(it) }).toString())
-                    putString(KEY_PERMANENTLY_BLOCKED_APPS, JSONArray(permanentApps).toString())
-                    putString(KEY_PERMANENTLY_BLOCKED_WEBSITES, JSONArray(permanentWebsites).toString())
-                    apply()
-                }
-                
-                android.util.Log.d("AppBlockingService", "Saved to SharedPreferences")
+                android.util.Log.d("AppBlockingService", "Applied to live service instance")
                 android.util.Log.d("AppBlockingService", "========== UPDATE COMPLETE ==========")
-            } ?: android.util.Log.e("AppBlockingService", "❌ SERVICE INSTANCE IS NULL! Cannot update restrictions!")
+                return true
+            }
+
+            android.util.Log.w(
+                "AppBlockingService",
+                "⚠️ SERVICE INSTANCE IS NULL. Restrictions saved and will apply when service connects."
+            )
+            return false
         }
     }
     
@@ -149,26 +164,20 @@ class AppBlockingService : AccessibilityService() {
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) {
-            android.util.Log.d("AppBlockingService", "Event is null")
-            return
-        }
+        if (event == null) return
         
-        val packageName = event.packageName?.toString() ?: run {
-            android.util.Log.d("AppBlockingService", "Package name is null")
-            return
-        }
-        
-        android.util.Log.d("AppBlockingService", "========== NEW EVENT ==========")
-        android.util.Log.d("AppBlockingService", "Package: $packageName")
-        android.util.Log.d("AppBlockingService", "Event type: ${event.eventType}")
-        android.util.Log.d("AppBlockingService", "Restrictions active: $restrictionsActive")
-        android.util.Log.d("AppBlockingService", "Restricted apps count: ${restrictedApps.size}")
-        android.util.Log.d("AppBlockingService", "Restricted apps list: $restrictedApps")
-        android.util.Log.d("AppBlockingService", "Restricted websites count: ${restrictedWebsites.size}")
+        val packageName = event.packageName?.toString() ?: return
+
+        // Ignore noisy/system packages that generate many events but should never be blocked.
+        if (shouldIgnorePackage(packageName)) return
         
         if (!restrictionsActive) {
-            android.util.Log.d("AppBlockingService", "Restrictions NOT active, allowing all apps")
+            return
+        }
+
+        // Nothing to enforce: avoid expensive scanning on every accessibility event.
+        if (restrictedApps.isEmpty() && restrictedWebsites.isEmpty() &&
+            permanentlyBlockedApps.isEmpty() && permanentlyBlockedWebsites.isEmpty()) {
             return
         }
         
@@ -176,21 +185,59 @@ class AppBlockingService : AccessibilityService() {
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
-                android.util.Log.d("AppBlockingService", "Window event detected (type: ${event.eventType})")
-                handleWindowEvent(packageName)
+                val shouldScanAllWindows = event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+                handleWindowEvent(packageName, shouldScanAllWindows)
             }
         }
     }
+
+    private fun shouldIgnorePackage(packageName: String): Boolean {
+        if (packageName == application.packageName ||
+            packageName == "com.android.krama" ||
+            packageName == "com.android.systemui") {
+            return true
+        }
+
+        // Ignore current keyboard package (IME) events - they are very frequent and unrelated.
+        val imePackage = getCurrentImePackageName()
+        if (imePackage != null && imePackage == packageName) {
+            return true
+        }
+
+        return false
+    }
+
+    private fun getCurrentImePackageName(): String? {
+        val now = System.currentTimeMillis()
+        if (now - lastImePackageReadTime < 5_000L) {
+            return cachedImePackage
+        }
+
+        return try {
+            val ime = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.DEFAULT_INPUT_METHOD
+            )
+            // Format is usually: com.package/.ImeService
+            val packageName = ime?.substringBefore('/')
+            cachedImePackage = packageName
+            lastImePackageReadTime = now
+            packageName
+        } catch (e: Exception) {
+            cachedImePackage
+        }
+    }
     
-    private fun handleWindowEvent(packageName: String) {
-        // Don't block the habit tracker app itself or the blocking activity
-        if (packageName == application.packageName || packageName == "com.example.habit_tracker_flutter") {
-            android.util.Log.d("AppBlockingService", "Skipping own app")
+    private fun handleWindowEvent(packageName: String, shouldScanAllWindows: Boolean) {
+        // Don't block the Krama app itself or the blocking activity
+        if (packageName == application.packageName || packageName == "com.android.krama") {
             return
         }
         
         // Also scan ALL visible windows to catch floating windows/split screen
-        scanAndBlockRestrictedWindows()
+        if (shouldScanAllWindows) {
+            scanAndBlockRestrictedWindows()
+        }
         
         // Check if app is permanently blocked
         if (permanentlyBlockedApps.contains(packageName)) {
@@ -204,8 +251,6 @@ class AppBlockingService : AccessibilityService() {
             android.util.Log.d("AppBlockingService", "🚫 BLOCKING APP (task-based): $packageName")
             blockApp(packageName, isPermanent = false)
             return
-        } else {
-            android.util.Log.d("AppBlockingService", "✅ App NOT in restricted list, allowing")
         }
         
         // Check if it's a browser with restricted website
@@ -228,19 +273,19 @@ class AppBlockingService : AccessibilityService() {
      */
     private fun scanAndBlockRestrictedWindows() {
         try {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastWindowScanTime < WINDOW_SCAN_COOLDOWN) return
+            lastWindowScanTime = currentTime
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 val windows = windows
-                android.util.Log.d("AppBlockingService", "Scanning ${windows?.size ?: 0} windows")
                 
                 windows?.forEach { window ->
                     val windowPackage = window.root?.packageName?.toString()
-                    val windowType = window.type
-                    
-                    android.util.Log.d("AppBlockingService", "Window: pkg=$windowPackage, type=$windowType, isActive=${window.isActive}, isFocused=${window.isFocused}")
                     
                     if (windowPackage != null && 
                         windowPackage != application.packageName &&
-                        windowPackage != "com.example.habit_tracker_flutter") {
+                        windowPackage != "com.android.krama") {
                         
                         // Check if this window's package is blocked
                         val isPermanentlyBlocked = permanentlyBlockedApps.contains(windowPackage)
@@ -249,7 +294,7 @@ class AppBlockingService : AccessibilityService() {
                             (permanentlyBlockedWebsites.isNotEmpty() || restrictedWebsites.isNotEmpty())
                         
                         if (isPermanentlyBlocked || isTaskBlocked || isBrowserWithBlockedSites) {
-                            android.util.Log.d("AppBlockingService", "⚠️ Found blocked app in window: $windowPackage (type=$windowType)")
+                            android.util.Log.d("AppBlockingService", "⚠️ Found blocked app in visible window: $windowPackage")
                             blockApp(windowPackage, isPermanentlyBlocked || (isBrowserWithBlockedSites && permanentlyBlockedWebsites.isNotEmpty()))
                         }
                     }

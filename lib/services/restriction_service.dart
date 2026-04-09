@@ -51,7 +51,7 @@ class RestrictionService {
 
   // Update restriction list on native side
   // Now includes task details and permanent block info for enhanced blocking screen
-  Future<void> updateRestrictions(
+  Future<bool> updateRestrictions(
     List<String> apps,
     List<String> websites,
     bool restrictionsActive, {
@@ -69,7 +69,7 @@ class RestrictionService {
       debugPrint(
           '   Permanently blocked apps: ${permanentlyBlockedApps.length}');
 
-      await platform.invokeMethod('updateRestrictions', {
+      final result = await platform.invokeMethod<bool>('updateRestrictions', {
         'apps': apps,
         'websites': websites,
         'active': restrictionsActive,
@@ -78,8 +78,15 @@ class RestrictionService {
         'permanentlyBlockedWebsites': permanentlyBlockedWebsites,
       });
 
-      debugPrint(
-          '✅ RestrictionService.updateRestrictions - Successfully sent to native');
+      final isServiceConnected = result ?? false;
+      if (isServiceConnected) {
+        debugPrint(
+            '✅ RestrictionService.updateRestrictions - Synced to running native service');
+      } else {
+        debugPrint(
+            '⚠️ RestrictionService.updateRestrictions - Native service not connected yet; restrictions saved and will apply when service connects');
+      }
+      return isServiceConnected;
     } catch (e, stackTrace) {
       debugPrint('❌ RestrictionService.updateRestrictions - Error: $e');
       debugPrint('📍 Stack trace: $stackTrace');

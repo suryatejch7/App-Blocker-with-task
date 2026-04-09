@@ -1,4 +1,4 @@
-package com.example.habit_tracker_flutter
+package com.android.krama
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -305,7 +305,7 @@ class BlockingOverlayService : Service() {
             }
             
             val infoText = TextView(this).apply {
-                text = "To unblock this app, go to Settings > Restrictions in the Habit Tracker app."
+                text = "To unblock this app, go to Settings > Restrictions in the Krama app."
                 textSize = 14f
                 setTextColor(Color.parseColor("#888888"))
             }
@@ -352,7 +352,7 @@ class BlockingOverlayService : Service() {
         }
         
         val openAppButton = TextView(this).apply {
-            text = if (isPermanent) "Open Habit Tracker" else "Open App to Complete Tasks"
+            text = if (isPermanent) "Open Krama" else "Open App to Complete Tasks"
             textSize = 16f
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.parseColor("#4A90E2"))
@@ -425,7 +425,7 @@ class BlockingOverlayService : Service() {
     }
     
     private fun openHabitTracker() {
-        val intent = packageManager.getLaunchIntentForPackage("com.example.habit_tracker_flutter")
+        val intent = packageManager.getLaunchIntentForPackage("com.android.krama")
         if (intent != null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             startActivity(intent)

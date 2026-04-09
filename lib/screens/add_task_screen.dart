@@ -24,10 +24,21 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
   late DateTime _startTime;
   late DateTime _endTime;
-  String _repeatSettings = 'none';
+  String _repeatSettings = 'once';
+  Set<String> _customRepeatDays = <String>{};
   String _restrictionMode = 'default';
   List<String> _customRestrictedApps = [];
   List<String> _customRestrictedWebsites = [];
+
+  static const List<String> _weekdayOrder = [
+    'mon',
+    'tue',
+    'wed',
+    'thu',
+    'fri',
+    'sat',
+    'sun',
+  ];
 
   @override
   void initState() {
@@ -38,7 +49,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       _descriptionController.text = task.description ?? '';
       _startTime = task.startTime;
       _endTime = task.endTime;
-      _repeatSettings = task.repeatSettings;
+      _repeatSettings = _fromStorageRepeat(task.repeatSettings);
       _restrictionMode = task.restrictionMode;
       _customRestrictedApps = List.from(task.customRestrictedApps);
       _customRestrictedWebsites = List.from(task.customRestrictedWebsites);
@@ -47,6 +58,135 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       final now = DateTime.now();
       _startTime = DateTime(now.year, now.month, now.day, now.hour + 1);
       _endTime = _startTime.add(const Duration(hours: 2));
+      _repeatSettings = 'once';
+    }
+  }
+
+  String _fromStorageRepeat(String value) {
+    if (value.startsWith('custom:')) {
+      final rawDays = value.substring('custom:'.length);
+      _customRepeatDays = rawDays
+          .split(',')
+          .map((e) => e.trim().toLowerCase())
+          .where((e) => _weekdayOrder.contains(e))
+          .toSet();
+      return 'custom';
+    }
+    if (value == 'none') return 'once';
+    return value;
+  }
+
+  String _toStorageRepeat(String value) {
+    if (value == 'custom') {
+      if (_customRepeatDays.isEmpty) return 'custom';
+      final orderedDays = _weekdayOrder
+          .where((day) => _customRepeatDays.contains(day))
+          .toList();
+      return 'custom:${orderedDays.join(',')}';
+    }
+    if (value == 'once') return 'none';
+    return value;
+  }
+
+  String _weekdayLabel(String dayCode) {
+    switch (dayCode) {
+      case 'mon':
+        return 'Mon';
+      case 'tue':
+        return 'Tue';
+      case 'wed':
+        return 'Wed';
+      case 'thu':
+        return 'Thu';
+      case 'fri':
+        return 'Fri';
+      case 'sat':
+        return 'Sat';
+      case 'sun':
+        return 'Sun';
+      default:
+        return dayCode;
+    }
+  }
+
+  String _repeatHeaderLabel() {
+    if (_repeatSettings != 'custom') return _repeatLabel(_repeatSettings);
+    if (_customRepeatDays.isEmpty) return 'Custom';
+    return 'Custom (${_customRepeatDays.length})';
+  }
+
+  Future<Set<String>?> _showCustomRepeatDialog({Set<String>? initialDays}) {
+    final selected = <String>{...(initialDays ?? _customRepeatDays)};
+    return showDialog<Set<String>>(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = isDark ? AppTheme.white : AppTheme.lightText;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Custom Repeat'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Choose the weekdays for this task:',
+                    style: TextStyle(color: textColor.withOpacity(0.8)),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _weekdayOrder.map((day) {
+                      final selectedDay = selected.contains(day);
+                      return FilterChip(
+                        label: Text(_weekdayLabel(day)),
+                        selected: selectedDay,
+                        onSelected: (isSelected) {
+                          setDialogState(() {
+                            if (isSelected) {
+                              selected.add(day);
+                            } else {
+                              selected.remove(day);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selected.isEmpty
+                      ? null
+                      : () => Navigator.pop(context, selected),
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _repeatLabel(String value) {
+    switch (value) {
+      case 'daily':
+        return 'Daily';
+      case 'weekly':
+        return 'Weekly';
+      case 'custom':
+        return 'Custom';
+      case 'once':
+      default:
+        return 'Once';
     }
   }
 
@@ -60,7 +200,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   Future<void> _selectDate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _startTime,
+      initialDate: _endTime,
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
@@ -74,13 +214,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
     if (date != null && mounted) {
       setState(() {
-        _startTime = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          _startTime.hour,
-          _startTime.minute,
-        );
+        _startTime = DateTime(date.year, date.month, date.day);
         _endTime = DateTime(
           date.year,
           date.month,
@@ -209,8 +343,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     }
   }
 
-  Future<void> _selectTime(bool isStartTime) async {
-    final base = isStartTime ? _startTime : _endTime;
+  Future<void> _selectTime() async {
+    final base = _endTime;
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(base),
@@ -225,23 +359,16 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
     if (time != null && mounted) {
       setState(() {
-        final updated = DateTime(
+        _endTime = DateTime(
           base.year,
           base.month,
           base.day,
           time.hour,
           time.minute,
         );
-        if (isStartTime) {
-          _startTime = updated;
-          if (_endTime.isBefore(_startTime)) {
-            _endTime = _startTime.add(const Duration(hours: 1));
-          }
-        } else {
-          _endTime = updated;
-          if (_endTime.isBefore(_startTime)) {
-            _startTime = _endTime.subtract(const Duration(hours: 1));
-          }
+
+        if (_endTime.isBefore(_startTime)) {
+          _endTime = _startTime.add(const Duration(hours: 1));
         }
       });
     }
@@ -266,7 +393,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         startTime: _startTime,
         endTime: _endTime,
         completed: widget.existingTask?.completed ?? false,
-        repeatSettings: _repeatSettings,
+        repeatSettings: _toStorageRepeat(_repeatSettings),
         restrictionMode: _restrictionMode,
         customRestrictedApps: _customRestrictedApps,
         customRestrictedWebsites: _customRestrictedWebsites,
@@ -404,7 +531,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                             label: 'Description',
                             hint: 'Add more details (optional)',
                             icon: Icons.notes,
-                            maxLines: 3,
+                            maxLines: 1,
                             cardColor: cardColor,
                             borderColor: borderColor,
                             textColor: textColor,
@@ -422,157 +549,126 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       icon: Icons.schedule,
                       iconColor: accentColor,
                       title: 'Schedule',
+                      headerAction: PopupMenuButton<String>(
+                        tooltip: 'Repeat options',
+                        initialValue: _repeatSettings,
+                        onSelected: (value) async {
+                          if (value == 'custom') {
+                            final picked = await _showCustomRepeatDialog();
+                            if (!mounted) return;
+                            if (picked != null && picked.isNotEmpty) {
+                              setState(() {
+                                _repeatSettings = 'custom';
+                                _customRepeatDays = picked;
+                              });
+                            }
+                            return;
+                          }
+                          setState(() => _repeatSettings = value);
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(value: 'once', child: Text('Once')),
+                          PopupMenuItem(value: 'daily', child: Text('Daily')),
+                          PopupMenuItem(value: 'weekly', child: Text('Weekly')),
+                          PopupMenuItem(value: 'custom', child: Text('Custom')),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: Colors.purple.withOpacity(0.25)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.repeat,
+                                  size: 16, color: Colors.purple),
+                              const SizedBox(width: 6),
+                              Text(
+                                _repeatHeaderLabel(),
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(Icons.arrow_drop_down,
+                                  color: textColor, size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
                       cardColor: cardColor,
                       borderColor: borderColor,
                       textColor: textColor,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Date Picker
-                          GestureDetector(
-                            onTap: _selectDate,
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: accentColor.withOpacity(0.3)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: accentColor.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(Icons.calendar_today,
-                                        color: accentColor, size: 22),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          DateFormat('EEEE').format(_startTime),
-                                          style: TextStyle(
-                                            color: accentColor,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          DateFormat('MMMM d, yyyy')
-                                              .format(_startTime),
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(Icons.chevron_right,
-                                      color: subtextColor),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Time Selection
                           Row(
                             children: [
                               Expanded(
-                                child: _buildTimeSelector(
-                                  context,
-                                  label: 'Start',
-                                  time: _startTime,
-                                  isStart: true,
-                                  cardColor: cardColor,
-                                  borderColor: borderColor,
+                                child: _buildScheduleSelector(
+                                  label: 'Due Date',
+                                  primaryText: DateFormat('MMM d, yyyy')
+                                      .format(_endTime),
+                                  secondaryText:
+                                      DateFormat('EEE').format(_endTime),
+                                  icon: Icons.calendar_today,
+                                  iconColor: accentColor,
                                   textColor: textColor,
                                   subtextColor: subtextColor,
+                                  onTap: _selectDate,
                                 ),
                               ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                                child: Icon(Icons.arrow_forward,
-                                    color: subtextColor, size: 20),
-                              ),
+                              const SizedBox(width: 10),
                               Expanded(
-                                child: _buildTimeSelector(
-                                  context,
-                                  label: 'End',
-                                  time: _endTime,
-                                  isStart: false,
-                                  cardColor: cardColor,
-                                  borderColor: borderColor,
+                                child: _buildScheduleSelector(
+                                  label: 'Deadline',
+                                  primaryText:
+                                      DateFormat('HH:mm').format(_endTime),
+                                  secondaryText: 'Tap to change',
+                                  icon: Icons.access_time,
+                                  iconColor: AppTheme.blue,
                                   textColor: textColor,
                                   subtextColor: subtextColor,
+                                  onTap: _selectTime,
                                 ),
                               ),
                             ],
                           ),
-
-                          const SizedBox(height: 20),
-
-                          // Duration info
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.blue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
+                          if (_repeatSettings == 'custom')
+                            const SizedBox(height: 8),
+                          if (_repeatSettings == 'custom')
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: _weekdayOrder
+                                  .where(
+                                      (day) => _customRepeatDays.contains(day))
+                                  .map((day) => Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              Colors.purple.withOpacity(0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          _weekdayLabel(day),
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ))
+                                  .toList(),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.timelapse,
-                                    size: 18, color: AppTheme.blue),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Duration: ${_formatDuration(_endTime.difference(_startTime))}',
-                                  style: const TextStyle(
-                                    color: AppTheme.blue,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Repeat Section
-                    _buildSectionCard(
-                      context,
-                      icon: Icons.repeat,
-                      iconColor: Colors.purple,
-                      title: 'Repeat',
-                      cardColor: cardColor,
-                      borderColor: borderColor,
-                      textColor: textColor,
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          _buildRepeatChip('none', 'Once', Icons.looks_one),
-                          _buildRepeatChip('daily', 'Daily', Icons.today),
-                          _buildRepeatChip(
-                              'weekly', 'Weekly', Icons.date_range),
-                          _buildRepeatChip('custom', 'Custom', Icons.tune),
                         ],
                       ),
                     ),
@@ -712,6 +808,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     required Color iconColor,
     required String title,
     String? subtitle,
+    Widget? headerAction,
     required Widget child,
     required Color cardColor,
     required Color borderColor,
@@ -761,11 +858,78 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   ],
                 ),
               ),
+              if (headerAction != null) headerAction,
             ],
           ),
           const SizedBox(height: 20),
           child,
         ],
+      ),
+    );
+  }
+
+  Widget _buildScheduleSelector({
+    required String label,
+    required String primaryText,
+    required String secondaryText,
+    required IconData icon,
+    required Color iconColor,
+    required Color textColor,
+    required Color subtextColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: iconColor.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 15, color: iconColor),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: subtextColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Icon(Icons.edit, size: 14, color: subtextColor),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              primaryText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              secondaryText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: subtextColor,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -845,110 +1009,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               : null,
         ),
       ],
-    );
-  }
-
-  Widget _buildTimeSelector(
-    BuildContext context, {
-    required String label,
-    required DateTime time,
-    required bool isStart,
-    required Color cardColor,
-    required Color borderColor,
-    required Color textColor,
-    required Color subtextColor,
-  }) {
-    return GestureDetector(
-      onTap: () => _selectTime(isStart),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: subtextColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.access_time, size: 20, color: AppTheme.blue),
-                const SizedBox(width: 8),
-                Text(
-                  DateFormat('HH:mm').format(time),
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    if (hours > 0 && minutes > 0) {
-      return '${hours}h ${minutes}m';
-    } else if (hours > 0) {
-      return '${hours}h';
-    } else {
-      return '${minutes}m';
-    }
-  }
-
-  Widget _buildRepeatChip(String value, String label, IconData icon) {
-    final selected = _repeatSettings == value;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final unselectedBg = isDark ? AppTheme.mediumGray : AppTheme.lightSurface;
-    final unselectedBorder = isDark ? AppTheme.lightGray : AppTheme.lightBorder;
-    final textColor = isDark ? AppTheme.white : AppTheme.lightText;
-
-    return GestureDetector(
-      onTap: () => setState(() => _repeatSettings = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? Colors.purple : unselectedBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? Colors.purple : unselectedBorder,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: selected ? AppTheme.white : textColor,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? AppTheme.white : textColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

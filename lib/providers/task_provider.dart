@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
-import '../services/supabase_service.dart';
 import '../services/restriction_service.dart';
+import '../services/home_widget_service.dart';
+import '../services/offline_cache_service.dart';
 
 class TaskProvider extends ChangeNotifier {
   List<Task> _tasks = [];
-  final _supabaseService = SupabaseService();
+  final _offlineCacheService = OfflineCacheService();
   final _restrictionService = RestrictionService();
+  final _homeWidgetService = HomeWidgetService();
   Timer? _midnightTimer;
   bool _isLoading = false;
+
+  // Track pending operations to prevent race conditions
+  final Set<String> _pendingOperations = {};
 
   // Store current default restrictions for syncing
   List<String> _defaultRestrictedApps = [];
@@ -64,7 +69,7 @@ class TaskProvider extends ChangeNotifier {
     return activeTasks.isNotEmpty;
   }
 
-  /// Trigger a re-sync after task changes
+  /// Trigger a re-sync after task changes (restrictions + widget)
   Future<void> _resync() async {
     await syncRestrictions(
       _defaultRestrictedApps,
@@ -72,6 +77,17 @@ class TaskProvider extends ChangeNotifier {
       _permanentlyBlockedApps,
       _permanentlyBlockedWebsites,
     );
+    // Update home screen widget
+    await _updateHomeWidget();
+  }
+
+  /// Update the home screen widget with current tasks
+  Future<void> _updateHomeWidget() async {
+    try {
+      await _homeWidgetService.updateWidgetWithTasks(_tasks);
+    } catch (e) {
+      debugPrint('⚠️ TaskProvider: Failed to update home widget: $e');
+    }
   }
 
   /// Syncs current task restrictions to native Android service
@@ -135,10 +151,9 @@ class TaskProvider extends ChangeNotifier {
       debugPrint('   Websites: ${websitesToRestrict.join(", ")}');
     }
 
-    // Restrictions are active if there are active tasks OR permanent blocks exist
-    final shouldBeActive = shouldRestrictionsBeActive ||
-        permanentlyBlockedApps.isNotEmpty ||
-        permanentlyBlockedWebsites.isNotEmpty;
+    // Activate native monitoring only when there is something to enforce.
+    final shouldBeActive =
+        appsToRestrict.isNotEmpty || websitesToRestrict.isNotEmpty;
     debugPrint('🔒 Restrictions should be active: $shouldBeActive');
 
     // Prepare pending tasks info for the blocking screen
@@ -155,7 +170,8 @@ class TaskProvider extends ChangeNotifier {
 
     try {
       debugPrint('📡 Sending to native Android service...');
-      await _restrictionService.updateRestrictions(
+      final nativeServiceConnected =
+          await _restrictionService.updateRestrictions(
         appsToRestrict.toList(),
         websitesToRestrict.toList(),
         shouldBeActive,
@@ -163,8 +179,13 @@ class TaskProvider extends ChangeNotifier {
         permanentlyBlockedApps: permanentlyBlockedApps,
         permanentlyBlockedWebsites: permanentlyBlockedWebsites,
       );
-      debugPrint(
-          '✅ TaskProvider.syncRestrictions - Successfully synced to native!');
+      if (nativeServiceConnected) {
+        debugPrint(
+            '✅ TaskProvider.syncRestrictions - Successfully synced to native!');
+      } else {
+        debugPrint(
+            '⚠️ TaskProvider.syncRestrictions - Native service not connected; restrictions are queued in local prefs');
+      }
       debugPrint('✅ ========== SYNC COMPLETE ==========');
     } catch (e, stackTrace) {
       debugPrint(
@@ -185,13 +206,16 @@ class TaskProvider extends ChangeNotifier {
   }
 
   Future<void> _load() async {
-    debugPrint(
-        '🟢 TaskProvider._load - Starting to load tasks from Supabase...');
+    debugPrint('🟢 TaskProvider._load - Loading local tasks...');
     _isLoading = true;
     notifyListeners();
 
     try {
-      final tasksData = await _supabaseService.getTasks();
+      if (!_offlineCacheService.isInitialized) {
+        await _offlineCacheService.initialize();
+      }
+
+      final tasksData = _offlineCacheService.getCachedTasks();
       debugPrint(
           '🟢 TaskProvider._load - Received ${tasksData.length} raw task records');
 
@@ -205,8 +229,10 @@ class TaskProvider extends ChangeNotifier {
         debugPrint('📋 Task titles: ${_tasks.map((t) => t.title).join(", ")}');
         debugPrint('📋 Task IDs: ${_tasks.map((t) => t.id).join(", ")}');
       } else {
-        debugPrint('📋 No tasks in database');
+        debugPrint('📋 No local tasks found');
       }
+      // Update home screen widget after loading tasks
+      await _updateHomeWidget();
     } catch (e, stackTrace) {
       debugPrint('❌ TaskProvider._load - Error loading tasks: $e');
       debugPrint('📍 Stack trace: $stackTrace');
@@ -221,7 +247,18 @@ class TaskProvider extends ChangeNotifier {
     await _load();
   }
 
-  void addTask(Task t) async {
+  /// Adds a new task with optimistic update and rollback on error.
+  /// Returns true if successful, false if operation is already pending.
+  Future<bool> addTask(Task t) async {
+    // Prevent duplicate operations
+    final operationKey = 'add_${t.id}';
+    if (_pendingOperations.contains(operationKey)) {
+      debugPrint(
+          '⚠️ TaskProvider.addTask - Operation already pending for ${t.id}');
+      return false;
+    }
+    _pendingOperations.add(operationKey);
+
     debugPrint(
         '🟢 TaskProvider.addTask - ========== ADDING NEW TASK ==========');
     debugPrint('🟢 Task title: ${t.title}');
@@ -240,17 +277,18 @@ class TaskProvider extends ChangeNotifier {
         debugPrint('   $key: $value');
       });
 
-      debugPrint('🟢 Calling SupabaseService.insertTask...');
-      await _supabaseService.insertTask(jsonData);
+      debugPrint('🟢 Saving task to local storage...');
+      await _offlineCacheService.upsertTask(jsonData);
       debugPrint(
-          '✅ TaskProvider.addTask - Task saved to Supabase successfully!');
+          '✅ TaskProvider.addTask - Task saved to local storage successfully!');
 
       // Sync restrictions to native service
       await _resync();
 
       debugPrint('✅ ========== TASK ADD COMPLETE ==========');
+      return true;
     } catch (e, stackTrace) {
-      debugPrint('❌❌❌ TaskProvider.addTask - ERROR SAVING TO SUPABASE ❌❌❌');
+      debugPrint('❌❌❌ TaskProvider.addTask - ERROR SAVING LOCALLY ❌❌❌');
       debugPrint('❌ Error: $e');
       debugPrint('📍 Stack trace: $stackTrace');
       // Rollback on error
@@ -258,98 +296,152 @@ class TaskProvider extends ChangeNotifier {
       notifyListeners();
       debugPrint(
           '❌ Task rolled back from local list, count now: ${_tasks.length}');
-      rethrow;
+      return false;
+    } finally {
+      _pendingOperations.remove(operationKey);
     }
   }
 
-  void updateTask(Task t) async {
+  /// Updates an existing task with optimistic update and rollback on error.
+  /// Returns true if successful, false if task not found or operation pending.
+  Future<bool> updateTask(Task t) async {
+    // Prevent duplicate operations
+    final operationKey = 'update_${t.id}';
+    if (_pendingOperations.contains(operationKey)) {
+      debugPrint(
+          '⚠️ TaskProvider.updateTask - Operation already pending for ${t.id}');
+      return false;
+    }
+
     debugPrint(
         '🟢 TaskProvider.updateTask - Updating task: ${t.title} (${t.id})');
     final i = _tasks.indexWhere((x) => x.id == t.id);
-    if (i != -1) {
-      final oldTask = _tasks[i];
-      _tasks[i] = t;
-      notifyListeners();
-      debugPrint('🟢 Task updated in local list');
-
-      try {
-        await _supabaseService.updateTask(t.id, t.toJson());
-        debugPrint('✅ TaskProvider.updateTask - Task updated in Supabase');
-
-        // Sync restrictions to native service
-        await _resync();
-      } catch (e, stackTrace) {
-        debugPrint('❌ TaskProvider.updateTask - Error: $e');
-        debugPrint('📍 Stack trace: $stackTrace');
-        // Rollback on error
-        _tasks[i] = oldTask;
-        notifyListeners();
-        debugPrint('❌ Task update rolled back');
-        rethrow;
-      }
-    } else {
+    if (i == -1) {
       debugPrint(
           '⚠️ TaskProvider.updateTask - Task not found in list: ${t.id}');
+      return false;
+    }
+
+    _pendingOperations.add(operationKey);
+    final oldTask = _tasks[i];
+    _tasks[i] = t;
+    notifyListeners();
+    debugPrint('🟢 Task updated in local list');
+
+    try {
+      await _offlineCacheService.upsertTask(t.toJson());
+      debugPrint('✅ TaskProvider.updateTask - Task updated in local storage');
+
+      // Sync restrictions to native service
+      await _resync();
+      return true;
+    } catch (e, stackTrace) {
+      debugPrint('❌ TaskProvider.updateTask - Error: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      // Rollback on error
+      _tasks[i] = oldTask;
+      notifyListeners();
+      debugPrint('❌ Task update rolled back');
+      return false;
+    } finally {
+      _pendingOperations.remove(operationKey);
     }
   }
 
-  void removeTask(String id) async {
+  /// Removes a task with optimistic update and rollback on error.
+  /// Returns true if successful, false if task not found or operation pending.
+  Future<bool> removeTask(String id) async {
+    // Prevent duplicate operations
+    final operationKey = 'remove_$id';
+    if (_pendingOperations.contains(operationKey)) {
+      debugPrint(
+          '⚠️ TaskProvider.removeTask - Operation already pending for $id');
+      return false;
+    }
+
     debugPrint('🟢 TaskProvider.removeTask - Removing task ID: $id');
-    final removedTask = _tasks.firstWhere((t) => t.id == id);
-    _tasks.removeWhere((t) => t.id == id);
+    final taskIndex = _tasks.indexWhere((t) => t.id == id);
+    if (taskIndex == -1) {
+      debugPrint('⚠️ TaskProvider.removeTask - Task not found: $id');
+      return false;
+    }
+
+    _pendingOperations.add(operationKey);
+    final removedTask = _tasks[taskIndex];
+    _tasks.removeAt(taskIndex);
     notifyListeners();
     debugPrint('🟢 Task removed from local list, count: ${_tasks.length}');
 
     try {
-      await _supabaseService.deleteTask(id);
-      debugPrint('✅ TaskProvider.removeTask - Task deleted from Supabase');
+      await _offlineCacheService.removeCachedTask(id);
+      debugPrint('✅ TaskProvider.removeTask - Task deleted from local storage');
 
       // Sync restrictions to native service
       await _resync();
+      return true;
     } catch (e, stackTrace) {
       debugPrint('❌ TaskProvider.removeTask - Error: $e');
       debugPrint('📍 Stack trace: $stackTrace');
       // Rollback on error
-      _tasks.add(removedTask);
+      _tasks.insert(taskIndex, removedTask);
       notifyListeners();
       debugPrint('❌ Task deletion rolled back, count: ${_tasks.length}');
-      rethrow;
+      return false;
+    } finally {
+      _pendingOperations.remove(operationKey);
     }
   }
 
-  void toggleComplete(String id) async {
+  /// Toggles task completion status with optimistic update and rollback on error.
+  /// Returns true if successful, false if task not found or operation pending.
+  Future<bool> toggleComplete(String id) async {
+    // Prevent duplicate operations (critical for double-tap prevention)
+    final operationKey = 'toggle_$id';
+    if (_pendingOperations.contains(operationKey)) {
+      debugPrint(
+          '⚠️ TaskProvider.toggleComplete - Operation already pending for $id');
+      return false;
+    }
+
     debugPrint('🟢 TaskProvider.toggleComplete - Toggling task ID: $id');
     final i = _tasks.indexWhere((x) => x.id == id);
-    if (i != -1) {
-      final wasCompleted = _tasks[i].completed;
-      _tasks[i].completed = !_tasks[i].completed;
-      if (_tasks[i].completed) {
-        _tasks[i].completedAt = DateTime.now();
-      } else {
-        _tasks[i].completedAt = null;
-      }
-      debugPrint(
-          '🟢 Task completion toggled: $wasCompleted -> ${_tasks[i].completed}');
-      notifyListeners();
-
-      try {
-        await _supabaseService.updateTask(_tasks[i].id, _tasks[i].toJson());
-        debugPrint('✅ TaskProvider.toggleComplete - Saved to Supabase');
-
-        // Sync restrictions to native service
-        await _resync();
-      } catch (e, stackTrace) {
-        debugPrint('❌ TaskProvider.toggleComplete - Error: $e');
-        debugPrint('📍 Stack trace: $stackTrace');
-        // Rollback on error
-        _tasks[i].completed = wasCompleted;
-        _tasks[i].completedAt = wasCompleted ? _tasks[i].completedAt : null;
-        notifyListeners();
-        debugPrint('❌ Toggle rolled back');
-        rethrow;
-      }
-    } else {
+    if (i == -1) {
       debugPrint('⚠️ TaskProvider.toggleComplete - Task not found: $id');
+      return false;
+    }
+
+    _pendingOperations.add(operationKey);
+    final wasCompleted = _tasks[i].completed;
+    final previousCompletedAt = _tasks[i].completedAt;
+
+    _tasks[i].completed = !_tasks[i].completed;
+    if (_tasks[i].completed) {
+      _tasks[i].completedAt = DateTime.now();
+    } else {
+      _tasks[i].completedAt = null;
+    }
+    debugPrint(
+        '🟢 Task completion toggled: $wasCompleted -> ${_tasks[i].completed}');
+    notifyListeners();
+
+    try {
+      await _offlineCacheService.upsertTask(_tasks[i].toJson());
+      debugPrint('✅ TaskProvider.toggleComplete - Saved locally');
+
+      // Sync restrictions to native service
+      await _resync();
+      return true;
+    } catch (e, stackTrace) {
+      debugPrint('❌ TaskProvider.toggleComplete - Error: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      // Rollback on error - restore exact previous state
+      _tasks[i].completed = wasCompleted;
+      _tasks[i].completedAt = previousCompletedAt;
+      notifyListeners();
+      debugPrint('❌ Toggle rolled back');
+      return false;
+    } finally {
+      _pendingOperations.remove(operationKey);
     }
   }
 
@@ -382,8 +474,8 @@ class TaskProvider extends ChangeNotifier {
 
     for (var task in completedYesterday) {
       try {
-        await _supabaseService.archiveCompletedTask(task.toJson());
-        await _supabaseService.deleteTask(task.id);
+        await _offlineCacheService.archiveTask(task.toJson());
+        await _offlineCacheService.removeCachedTask(task.id);
       } catch (e, stackTrace) {
         debugPrint('❌ Error archiving task ${task.id}: $e');
         debugPrint('📍 Stack trace: $stackTrace');

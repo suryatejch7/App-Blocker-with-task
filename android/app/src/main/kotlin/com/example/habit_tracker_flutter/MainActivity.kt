@@ -1,4 +1,4 @@
-package com.example.habit_tracker_flutter
+package com.android.krama
 
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,6 +14,9 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.habittracker/restrictions"
     private val ACCESSIBILITY_REQUEST_CODE = 1001
     private val OVERLAY_REQUEST_CODE = 1002
+    private var cachedInstalledApps: List<Map<String, String>> = emptyList()
+    private var installedAppsCacheTime: Long = 0
+    private val INSTALLED_APPS_CACHE_MS = 30_000L
     
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -43,7 +46,8 @@ class MainActivity : FlutterActivity() {
                     val permanentlyBlockedApps = call.argument<List<String>>("permanentlyBlockedApps") ?: emptyList()
                     val permanentlyBlockedWebsites = call.argument<List<String>>("permanentlyBlockedWebsites") ?: emptyList()
                     
-                    AppBlockingService.updateRestrictions(
+                    val serviceConnected = AppBlockingService.updateRestrictions(
+                        this,
                         apps, 
                         websites, 
                         active,
@@ -51,11 +55,21 @@ class MainActivity : FlutterActivity() {
                         permanentlyBlockedApps,
                         permanentlyBlockedWebsites
                     )
-                    result.success(null)
+                    result.success(serviceConnected)
                 }
                 "getInstalledApps" -> {
-                    val apps = getInstalledApps()
-                    result.success(apps)
+                    Thread {
+                        try {
+                            val apps = getInstalledApps()
+                            runOnUiThread {
+                                result.success(apps)
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                result.error("GET_APPS_FAILED", e.message, null)
+                            }
+                        }
+                    }.start()
                 }
                 "startMonitoring" -> {
                     // Start foreground service if needed
@@ -131,6 +145,11 @@ class MainActivity : FlutterActivity() {
     }
     
     private fun getInstalledApps(): List<Map<String, String>> {
+        val now = System.currentTimeMillis()
+        if (cachedInstalledApps.isNotEmpty() && now - installedAppsCacheTime < INSTALLED_APPS_CACHE_MS) {
+            return cachedInstalledApps
+        }
+
         val pm = packageManager
         val apps = mutableListOf<Map<String, String>>()
         
@@ -147,6 +166,9 @@ class MainActivity : FlutterActivity() {
             apps.add(appMap)
         }
         
-        return apps.sortedBy { it["name"] }
+        val sorted = apps.sortedBy { it["name"] }
+        cachedInstalledApps = sorted
+        installedAppsCacheTime = now
+        return sorted
     }
 }

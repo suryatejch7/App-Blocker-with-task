@@ -61,23 +61,34 @@ class _AddAppsScreenState extends State<AddAppsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'Edit App' : 'Add App')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'App name')),
+              controller: _nameCtrl,
+              decoration: const InputDecoration(labelText: 'App name'),
+            ),
             const SizedBox(height: 8),
             TextField(
-                controller: _pkgCtrl,
-                decoration: const InputDecoration(labelText: 'Package name')),
+              controller: _pkgCtrl,
+              decoration: const InputDecoration(labelText: 'Package name'),
+            ),
             const SizedBox(height: 8),
             TextField(
-                controller: _notesCtrl,
-                decoration: const InputDecoration(labelText: 'Notes')),
+              controller: _notesCtrl,
+              decoration: const InputDecoration(labelText: 'Notes'),
+              maxLines: 3,
+            ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _save, child: const Text('Save')),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _save,
+                child: const Text('Save'),
+              ),
+            ),
           ],
         ),
       ),

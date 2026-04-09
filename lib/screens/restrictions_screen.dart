@@ -1,9 +1,14 @@
+// redundant code, will be removed in future updates
+
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../providers/restrictions_provider.dart';
 import '../services/restriction_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
 
 class RestrictionsScreen extends StatefulWidget {
   const RestrictionsScreen({super.key});
@@ -30,7 +35,9 @@ class _RestrictionsScreenState extends State<RestrictionsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final compact = context.isCompactWidth;
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Default Restrictions'),
         leading: IconButton(
@@ -39,6 +46,7 @@ class _RestrictionsScreenState extends State<RestrictionsScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: compact,
           indicatorColor: AppTheme.yellow,
           labelColor: AppTheme.yellow,
           unselectedLabelColor: AppTheme.white,
@@ -64,6 +72,8 @@ class _AppsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scale = context.responsiveScale;
+    final compact = context.isCompactWidth;
     return Consumer<RestrictionsProvider>(
       builder: (context, provider, child) {
         final restrictedApps = provider.defaultRestrictedApps;
@@ -72,29 +82,61 @@ class _AppsTab extends StatelessWidget {
           children: [
             // Header with count
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(scale * 16),
               color: AppTheme.darkGray,
-              child: Row(
-                children: [
-                  Icon(Icons.block, color: AppTheme.yellow, size: 20),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${restrictedApps.length} Blocked Apps',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compactHeader = constraints.maxWidth < 360 || compact;
+                  final content = Row(
+                    children: [
+                      Icon(Icons.block,
+                          color: AppTheme.yellow, size: scale * 20),
+                      SizedBox(width: scale * 12),
+                      Expanded(
+                        child: Text(
+                          '${restrictedApps.length} Blocked Apps',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
-                  ),
-                  const Spacer(),
-                  ElevatedButton.icon(
+                      ),
+                    ],
+                  );
+
+                  final addButton = ElevatedButton.icon(
                     onPressed: () => _showAddAppsDialog(context, provider),
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Add'),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: scale * 16,
+                        vertical: scale * 8,
+                      ),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (compactHeader) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        content,
+                        SizedBox(height: scale * 12),
+                        Align(
+                            alignment: Alignment.centerRight, child: addButton),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: content),
+                      addButton,
+                    ],
+                  );
+                },
               ),
             ),
 
@@ -181,9 +223,13 @@ class _AppsTab extends StatelessWidget {
 
       final selectedApps = await showDialog<List<String>>(
         context: context,
-        builder: (context) => _AppSelectorDialog(
-          installedApps: installedApps,
-          alreadyRestricted: provider.defaultRestrictedApps,
+        builder: (dialogContext) => MediaQuery.removeViewInsets(
+          context: dialogContext,
+          removeBottom: true,
+          child: _AppSelectorDialog(
+            installedApps: installedApps,
+            alreadyRestricted: provider.defaultRestrictedApps,
+          ),
         ),
       );
 
@@ -219,6 +265,8 @@ class _WebsitesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scale = context.responsiveScale;
+    final compact = context.isCompactWidth;
     return Consumer<RestrictionsProvider>(
       builder: (context, provider, child) {
         final restrictedWebsites = provider.defaultRestrictedWebsites;
@@ -227,29 +275,61 @@ class _WebsitesTab extends StatelessWidget {
           children: [
             // Header with count
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(scale * 16),
               color: AppTheme.darkGray,
-              child: Row(
-                children: [
-                  Icon(Icons.block, color: AppTheme.yellow, size: 20),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${restrictedWebsites.length} Blocked Websites',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compactHeader = constraints.maxWidth < 360 || compact;
+                  final content = Row(
+                    children: [
+                      Icon(Icons.block,
+                          color: AppTheme.yellow, size: scale * 20),
+                      SizedBox(width: scale * 12),
+                      Expanded(
+                        child: Text(
+                          '${restrictedWebsites.length} Blocked Websites',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
-                  ),
-                  const Spacer(),
-                  ElevatedButton.icon(
+                      ),
+                    ],
+                  );
+
+                  final addButton = ElevatedButton.icon(
                     onPressed: () => _showAddWebsiteDialog(context, provider),
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Add'),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: scale * 16,
+                        vertical: scale * 8,
+                      ),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (compactHeader) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        content,
+                        SizedBox(height: scale * 12),
+                        Align(
+                            alignment: Alignment.centerRight, child: addButton),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: content),
+                      addButton,
+                    ],
+                  );
+                },
               ),
             ),
 
@@ -399,23 +479,55 @@ class _AppSelectorDialog extends StatefulWidget {
 
 class _AppSelectorDialogState extends State<_AppSelectorDialog> {
   final Set<String> _selectedApps = {};
-  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  late final List<Map<String, dynamic>> _allSelectableApps;
+  List<Map<String, dynamic>> _filteredApps = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _allSelectableApps = widget.installedApps.where((app) {
+      final packageName = app['packageName'] as String;
+      return !widget.alreadyRestricted.contains(packageName);
+    }).toList(growable: false);
+    _filteredApps = _allSelectableApps;
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 120), () {
+      if (!mounted) return;
+      final trimmed = query.trim().toLowerCase();
+      if (trimmed.isEmpty) {
+        setState(() => _filteredApps = _allSelectableApps);
+        return;
+      }
+
+      final filtered = _allSelectableApps.where((app) {
+        final packageName = (app['packageName'] as String).toLowerCase();
+        final appName = (app['name'] as String).toLowerCase();
+        return packageName.contains(trimmed) || appName.contains(trimmed);
+      }).toList(growable: false);
+
+      setState(() => _filteredApps = filtered);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredApps = widget.installedApps.where((app) {
-      final packageName = app['packageName'] as String;
-      final appName = app['name'] as String;
-      if (widget.alreadyRestricted.contains(packageName)) return false;
-      if (_searchQuery.isEmpty) return true;
-      return packageName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          appName.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
-
     return Dialog(
+      insetAnimationDuration: Duration.zero,
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.8,
+        width: MediaQuery.of(context).size.width * 0.92,
+        height: MediaQuery.of(context).size.height * 0.78,
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
@@ -436,19 +548,20 @@ class _AppSelectorDialogState extends State<_AppSelectorDialog> {
             ),
             const SizedBox(height: 16),
             TextField(
+              controller: _searchController,
               decoration: const InputDecoration(
                 hintText: 'Search apps...',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
-              onChanged: (value) => setState(() => _searchQuery = value),
+              onChanged: _onSearchChanged,
             ),
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
-                itemCount: filteredApps.length,
+                itemCount: _filteredApps.length,
                 itemBuilder: (context, index) {
-                  final app = filteredApps[index];
+                  final app = _filteredApps[index];
                   final packageName = app['packageName'] as String;
                   final appName = app['name'] as String;
                   final isSelected = _selectedApps.contains(packageName);

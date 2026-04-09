@@ -9,9 +9,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <application
-        android:label="Habit Tracker"
+        android:label="Krama"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -67,6 +68,27 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+        
+        <!-- Home Screen Widget Provider -->
+        <receiver
+            android:name=".TaskWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.android.krama.ACTION_TASK_CLICK" />
+                <action android:name="com.android.krama.ACTION_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/task_widget_info" />
+        </receiver>
+        
+        <!-- Widget Remote Views Service for scrollable list -->
+        <service
+            android:name=".TaskWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
         
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

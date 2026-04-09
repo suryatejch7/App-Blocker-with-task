@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:habit_tracker_flutter/models/task.dart';
-import 'package:habit_tracker_flutter/services/supabase_service.dart';
 
 void main() {
   group('Task Model Tests', () {
@@ -124,22 +123,6 @@ void main() {
       );
 
       expect(completedTask.isOverdue, false);
-    });
-  });
-
-  group('Supabase Service Tests', () {
-    test('SupabaseService should be singleton', () {
-      final service1 = SupabaseService();
-      final service2 = SupabaseService();
-
-      expect(identical(service1, service2), true);
-    });
-
-    test('Supabase URL and key should be configured', () {
-      expect(SupabaseService.supabaseUrl,
-          'https://cwupmrfxwdqagvhyqnen.supabase.co');
-      expect(SupabaseService.supabaseAnonKey, isNotEmpty);
-      expect(SupabaseService.supabaseAnonKey.startsWith('eyJ'), true);
     });
   });
 

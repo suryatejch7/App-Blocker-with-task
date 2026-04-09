@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 class Task {
   String id;
   String title;
@@ -40,25 +38,10 @@ class Task {
         now.isAfter(startTime) || now.isAtSameMomentAs(startTime);
     final isBeforeEnd = now.isBefore(endTime);
 
-    // Debug timezone comparison
-    debugPrint('🕐 Task "$title" time check:');
-    debugPrint('   Now (IST): $now');
-    debugPrint('   Start (IST): $startTime');
-    debugPrint('   End (IST): $endTime');
-    debugPrint(
-        '   Is after start? $isAfterStart | Is before end? $isBeforeEnd');
-    debugPrint('   Active? ${isAfterStart && isBeforeEnd}');
-
     return isAfterStart && isBeforeEnd;
   }
 
   Map<String, dynamic> toJson() {
-    debugPrint('🔵 Task.toJson - Converting "$title" to JSON');
-    debugPrint('   📅 Local startTime: $startTime (${startTime.timeZoneName})');
-    debugPrint('   📅 Local endTime: $endTime (${endTime.timeZoneName})');
-    debugPrint('   🌍 UTC startTime: ${startTime.toUtc()}');
-    debugPrint('   🌍 UTC endTime: ${endTime.toUtc()}');
-    
     return {
       'id': id,
       'title': title,
@@ -79,19 +62,12 @@ class Task {
   static Task fromJson(Map<String, dynamic> j) {
     final startTimeStr = j['start_time'] ?? j['startTime'];
     final endTimeStr = j['end_time'] ?? j['endTime'];
-    
-    debugPrint('🟢 Task.fromJson - Parsing "${j['title']}" from JSON');
-    debugPrint('   📦 Raw start_time from DB: $startTimeStr');
-    debugPrint('   📦 Raw end_time from DB: $endTimeStr');
-    
+
     final startTimeUtc = DateTime.parse(startTimeStr);
     final endTimeUtc = DateTime.parse(endTimeStr);
     final startTimeLocal = startTimeUtc.toLocal();
     final endTimeLocal = endTimeUtc.toLocal();
-    
-    debugPrint('   🌍 Parsed as UTC - start: $startTimeUtc, end: $endTimeUtc');
-    debugPrint('   📅 Converted to local - start: $startTimeLocal (${startTimeLocal.timeZoneName}), end: $endTimeLocal (${endTimeLocal.timeZoneName})');
-    
+
     return Task(
       id: j['id'] as String,
       title: j['title'] as String,

@@ -1,4 +1,4 @@
-package com.example.habit_tracker_flutter
+package com.android.krama
 
 import android.app.Activity
 import android.content.Intent
@@ -121,7 +121,7 @@ class BlockingActivity : Activity() {
             }
             
             val infoText = TextView(this).apply {
-                text = "To unblock this app, go to Settings > Restrictions in the Habit Tracker app and remove it from the 'Always Block' list."
+                text = "To unblock this app, go to Settings > Restrictions in the Krama app and remove it from the 'Always Block' list."
                 textSize = 14f
                 setTextColor(Color.parseColor("#888888"))
             }
@@ -170,7 +170,7 @@ class BlockingActivity : Activity() {
         scrollView.addView(contentLayout)
         rootLayout.addView(scrollView)
         
-        // Bottom button - Open Habit Tracker
+        // Bottom button - Open Krama
         val buttonLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 24, 48, 48)
@@ -181,7 +181,7 @@ class BlockingActivity : Activity() {
         }
         
         val openAppButton = TextView(this).apply {
-            text = if (isPermanent) "Open Habit Tracker" else "Open App to Complete Tasks"
+            text = if (isPermanent) "Open Krama" else "Open App to Complete Tasks"
             textSize = 16f
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.parseColor("#4A90E2"))
@@ -285,7 +285,7 @@ class BlockingActivity : Activity() {
     }
     
     private fun openHabitTracker() {
-        val intent = packageManager.getLaunchIntentForPackage("com.example.habit_tracker_flutter")
+        val intent = packageManager.getLaunchIntentForPackage("com.android.krama")
         if (intent != null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             startActivity(intent)

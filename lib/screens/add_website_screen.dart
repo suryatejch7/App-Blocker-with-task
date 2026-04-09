@@ -58,23 +58,34 @@ class _AddWebsiteScreenState extends State<AddWebsiteScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'Edit Website' : 'Add Website')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-                controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: 'Title')),
+              controller: _titleCtrl,
+              decoration: const InputDecoration(labelText: 'Title'),
+            ),
             const SizedBox(height: 8),
             TextField(
-                controller: _urlCtrl,
-                decoration: const InputDecoration(labelText: 'URL')),
+              controller: _urlCtrl,
+              decoration: const InputDecoration(labelText: 'URL'),
+            ),
             const SizedBox(height: 8),
             TextField(
-                controller: _notesCtrl,
-                decoration: const InputDecoration(labelText: 'Notes')),
+              controller: _notesCtrl,
+              decoration: const InputDecoration(labelText: 'Notes'),
+              maxLines: 3,
+            ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _save, child: const Text('Save')),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _save,
+                child: const Text('Save'),
+              ),
+            ),
           ],
         ),
       ),

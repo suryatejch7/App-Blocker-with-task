@@ -5,11 +5,13 @@ import 'package:hive_flutter/hive_flutter.dart';
 /// Provides offline-first architecture with sync capabilities
 class OfflineCacheService {
   static const String _tasksBoxName = 'tasks_cache';
+  static const String _archivedTasksBoxName = 'archived_tasks_cache';
   static const String _restrictionsBoxName = 'restrictions_cache';
   static const String _pendingOperationsBoxName = 'pending_operations';
   static const String _metadataBoxName = 'cache_metadata';
 
   late Box<Map> _tasksBox;
+  late Box<Map> _archivedTasksBox;
   late Box<Map> _restrictionsBox;
   late Box<Map> _pendingOperationsBox;
   late Box _metadataBox;
@@ -30,10 +32,25 @@ class OfflineCacheService {
       await Hive.initFlutter();
 
       _tasksBox = await Hive.openBox<Map>(_tasksBoxName);
+      _archivedTasksBox = await Hive.openBox<Map>(_archivedTasksBoxName);
       _restrictionsBox = await Hive.openBox<Map>(_restrictionsBoxName);
       _pendingOperationsBox =
           await Hive.openBox<Map>(_pendingOperationsBoxName);
       _metadataBox = await Hive.openBox(_metadataBoxName);
+
+      // Ensure default restriction keys exist
+      if (_restrictionsBox.get('default_apps') == null) {
+        await _restrictionsBox.put('default_apps', {'items': <String>[]});
+      }
+      if (_restrictionsBox.get('default_websites') == null) {
+        await _restrictionsBox.put('default_websites', {'items': <String>[]});
+      }
+      if (_restrictionsBox.get('permanent_apps') == null) {
+        await _restrictionsBox.put('permanent_apps', {'items': <String>[]});
+      }
+      if (_restrictionsBox.get('permanent_websites') == null) {
+        await _restrictionsBox.put('permanent_websites', {'items': <String>[]});
+      }
 
       _isInitialized = true;
       debugPrint('✅ OfflineCacheService initialized');
@@ -86,6 +103,12 @@ class OfflineCacheService {
     }
   }
 
+  /// Upsert task and persist immediately
+  Future<void> upsertTask(Map<String, dynamic> task) async {
+    await cacheTask(task);
+    await _metadataBox.put('tasks_last_sync', DateTime.now().toIso8601String());
+  }
+
   /// Remove a task from cache
   Future<void> removeCachedTask(String id) async {
     try {
@@ -93,6 +116,31 @@ class OfflineCacheService {
       debugPrint('✅ Removed task from cache: $id');
     } catch (e) {
       debugPrint('❌ Error removing task from cache: $e');
+    }
+  }
+
+  /// Archive a task locally for history/analytics
+  Future<void> archiveTask(Map<String, dynamic> task) async {
+    try {
+      final id = task['id'] as String;
+      await _archivedTasksBox.put(id, Map<String, dynamic>.from(task));
+      await _metadataBox.put(
+          'archive_last_update', DateTime.now().toIso8601String());
+      debugPrint('✅ Archived task locally: $id');
+    } catch (e) {
+      debugPrint('❌ Error archiving task locally: $e');
+    }
+  }
+
+  /// Return archived tasks
+  List<Map<String, dynamic>> getArchivedTasks() {
+    try {
+      return _archivedTasksBox.values
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Error getting archived tasks: $e');
+      return [];
     }
   }
 
@@ -197,6 +245,26 @@ class OfflineCacheService {
     }
   }
 
+  /// Persist all restriction collections in one call
+  Future<void> saveRestrictions({
+    required List<String> defaultApps,
+    required List<String> defaultWebsites,
+    required List<String> permanentApps,
+    required List<String> permanentWebsites,
+  }) async {
+    try {
+      await cacheDefaultRestrictions(
+          apps: defaultApps, websites: defaultWebsites);
+      await cachePermanentBlocks(
+          apps: permanentApps, websites: permanentWebsites);
+      await _metadataBox.put(
+          'restrictions_last_sync', DateTime.now().toIso8601String());
+      debugPrint('✅ Saved restrictions locally');
+    } catch (e) {
+      debugPrint('❌ Error saving restrictions locally: $e');
+    }
+  }
+
   // ==================== PENDING OPERATIONS ====================
   // For operations made while offline that need to sync when online
 
@@ -287,6 +355,7 @@ class OfflineCacheService {
   Future<void> clearAll() async {
     try {
       await _tasksBox.clear();
+      await _archivedTasksBox.clear();
       await _restrictionsBox.clear();
       await _pendingOperationsBox.clear();
       await _metadataBox.clear();
