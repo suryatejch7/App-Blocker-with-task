@@ -2,10 +2,11 @@ package com.android.krama
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
+import java.util.UUID
 import org.json.JSONArray
-import org.json.JSONObject
 import es.antonborri.home_widget.HomeWidgetPlugin
 
 /**
@@ -23,20 +24,20 @@ class TaskWidgetService : RemoteViewsService() {
 class TaskRemoteViewsFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
     
     private var tasks: List<TaskItem> = emptyList()
+    private var isDarkTheme: Boolean = false
+    private var titleTextSize: Float = 12f
+    private var timeTextSize: Float = 10f
     
     data class TaskItem(
         val id: String,
         val title: String,
-        val description: String,
-        val startTime: String,
-        val endTime: String,
+        val deadlineText: String,
         val completed: Boolean,
         val isOverdue: Boolean,
         val isActive: Boolean
     )
     
     override fun onCreate() {
-        // Initial setup - load tasks immediately
         loadTasks()
     }
     
@@ -55,6 +56,9 @@ class TaskRemoteViewsFactory(private val context: Context) : RemoteViewsService.
         try {
             val widgetData = HomeWidgetPlugin.getData(context)
             val tasksJson = widgetData.getString("tasks_data", "[]") ?: "[]"
+            isDarkTheme = widgetData.getBoolean("widget_is_dark", false)
+            titleTextSize = widgetData.getFloat("widget_title_size", 12f)
+            timeTextSize = widgetData.getFloat("widget_time_size", 10f)
             val jsonArray = JSONArray(tasksJson)
             
             val taskList = mutableListOf<TaskItem>()
@@ -63,18 +67,19 @@ class TaskRemoteViewsFactory(private val context: Context) : RemoteViewsService.
                 taskList.add(TaskItem(
                     id = obj.optString("id", ""),
                     title = obj.optString("title", "Untitled Task"),
-                    description = obj.optString("description", ""),
-                    startTime = obj.optString("startTime", ""),
-                    endTime = obj.optString("endTime", ""),
+                    deadlineText = obj.optString("deadlineText", obj.optString("endTime", "")),
                     completed = obj.optBoolean("completed", false),
                     isOverdue = obj.optBoolean("isOverdue", false),
                     isActive = obj.optBoolean("isActive", false)
                 ))
             }
             tasks = taskList
-            android.util.Log.d("TaskWidgetService", "Loaded ${tasks.size} tasks")
         } catch (e: Exception) {
-            android.util.Log.e("TaskWidgetService", "Error loading tasks: ${e.message}")
+            android.util.Log.e(
+                "TaskWidgetService",
+                "Error loading tasks in package=${context.packageName}: ${e.message}",
+                e
+            )
             tasks = emptyList()
         }
     }
@@ -84,17 +89,13 @@ class TaskRemoteViewsFactory(private val context: Context) : RemoteViewsService.
     }
     
     override fun getCount(): Int {
-        android.util.Log.d("TaskWidgetService", "getCount called, returning ${tasks.size}")
         return tasks.size
     }
     
     override fun getViewAt(position: Int): RemoteViews {
-        android.util.Log.d("TaskWidgetService", "getViewAt called for position: $position, tasks.size: ${tasks.size}")
-        
         val views = RemoteViews(context.packageName, R.layout.task_widget_item)
         
         if (position < 0 || position >= tasks.size) {
-            android.util.Log.e("TaskWidgetService", "Invalid position: $position, returning placeholder")
             views.setTextViewText(R.id.task_item_title, "Loading...")
             views.setTextViewText(R.id.task_item_time, "")
             views.setTextViewText(R.id.task_item_status, "○")
@@ -103,47 +104,57 @@ class TaskRemoteViewsFactory(private val context: Context) : RemoteViewsService.
         
         return try {
             val task = tasks[position]
-            
-            android.util.Log.d("TaskWidgetService", "Rendering task: ${task.title}")
+
+            val overdueColor = if (isDarkTheme) 0xFFFF5252.toInt() else 0xFFD32F2F.toInt()
+            val completedColor = if (isDarkTheme) 0xFF888888.toInt() else 0xFF6B7280.toInt()
+            val primaryColor = if (isDarkTheme) 0xFFFFFFFF.toInt() else 0xFF1F2937.toInt()
+            val secondaryColor = if (isDarkTheme) 0xFFB0B0B0.toInt() else 0xFF6B7280.toInt()
+
+            val backgroundRes = if (task.isOverdue && !task.completed) {
+                if (isDarkTheme) R.drawable.task_item_overdue_background else R.drawable.task_item_overdue_background_light
+            } else {
+                if (isDarkTheme) R.drawable.task_item_background else R.drawable.task_item_background_light
+            }
+            views.setInt(R.id.task_item_container, "setBackgroundResource", backgroundRes)
             
             // Set task title
             views.setTextViewText(R.id.task_item_title, task.title)
+            views.setTextColor(R.id.task_item_title, if (task.completed) completedColor else primaryColor)
+            views.setTextViewTextSize(R.id.task_item_title, android.util.TypedValue.COMPLEX_UNIT_SP, titleTextSize)
             
             // Set time range
-            val timeText = if (task.startTime.isNotEmpty() && task.endTime.isNotEmpty()) {
-                "${task.startTime} - ${task.endTime}"
-            } else if (task.startTime.isNotEmpty()) {
-                task.startTime
+            val deadlineText = if (task.deadlineText.isNotEmpty()) {
+                "Due ${task.deadlineText}"
             } else {
-                "No time set"
+                "No deadline set"
             }
-            views.setTextViewText(R.id.task_item_time, timeText)
+            views.setTextViewText(R.id.task_item_time, deadlineText)
+            views.setTextColor(R.id.task_item_time, secondaryColor)
+            views.setTextViewTextSize(R.id.task_item_time, android.util.TypedValue.COMPLEX_UNIT_SP, timeTextSize)
             
             // Set status indicator
             val statusIcon = when {
                 task.completed -> "✓"
-                task.isOverdue -> "⚠"
-                task.isActive -> "▶"
                 else -> "○"
             }
             views.setTextViewText(R.id.task_item_status, statusIcon)
-            
-            // Set text color based on status
-            val textColor = when {
-                task.completed -> 0xFF888888.toInt() // Gray for completed
-                task.isOverdue -> 0xFFE57373.toInt() // Red for overdue
-                task.isActive -> 0xFF81C784.toInt()  // Green for active
-                else -> 0xFFFFFFFF.toInt()           // White for upcoming
-            }
-            views.setTextColor(R.id.task_item_title, textColor)
-            
-            // Set up fill-in intent for click handling
+            views.setTextColor(
+                R.id.task_item_status,
+                when {
+                    task.completed -> 0xFF4CAF50.toInt()
+                    task.isOverdue -> overdueColor
+                    else -> 0xFFB0B0B0.toInt()
+                }
+            )
+
             val fillInIntent = Intent().apply {
+                action = "${TaskWidgetProvider.ACTION_TOGGLE_TASK}.${task.id}"
+                data = Uri.parse("krama://toggle-task/${task.id}")
                 putExtra(TaskWidgetProvider.EXTRA_TASK_ID, task.id)
+                putExtra(TaskWidgetProvider.EXTRA_WIDGET_ACTION, TaskWidgetProvider.ACTION_TOGGLE_TASK)
             }
             views.setOnClickFillInIntent(R.id.task_item_container, fillInIntent)
-            
-            android.util.Log.d("TaskWidgetService", "Successfully created view for task: ${task.title}")
+            views.setOnClickFillInIntent(R.id.task_item_status, fillInIntent)
             views
         } catch (e: Exception) {
             android.util.Log.e("TaskWidgetService", "Error in getViewAt: ${e.message}", e)
@@ -156,15 +167,29 @@ class TaskRemoteViewsFactory(private val context: Context) : RemoteViewsService.
     }
     
     override fun getLoadingView(): RemoteViews {
-        android.util.Log.d("TaskWidgetService", "getLoadingView called")
         return RemoteViews(context.packageName, R.layout.task_widget_loading)
     }
     
-    override fun getViewTypeCount(): Int = 1
+    override fun getViewTypeCount(): Int {
+        return 1
+    }
     
-    override fun getItemId(position: Int): Long = position.toLong()
+    override fun getItemId(position: Int): Long {
+        if (position < 0 || position >= tasks.size) return position.toLong()
+        return stableItemId(tasks[position].id)
+    }
     
-    // Return false since task IDs are UUIDs (strings) which cannot be 
-    // reliably converted to unique longs without collision risk
-    override fun hasStableIds(): Boolean = false
+    // Use stable IDs so launcher hosts don't mismatch recycled rows/fill-in intents.
+    override fun hasStableIds(): Boolean {
+        return true
+    }
+
+    private fun stableItemId(taskId: String): Long {
+        return try {
+            val uuid = UUID.fromString(taskId)
+            uuid.mostSignificantBits xor uuid.leastSignificantBits
+        } catch (_: Exception) {
+            taskId.hashCode().toLong()
+        }
+    }
 }

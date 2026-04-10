@@ -12,16 +12,52 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.habittracker/restrictions"
+    private val WIDGET_CHANNEL = "com.android.krama/widget_actions"
     private val ACCESSIBILITY_REQUEST_CODE = 1001
     private val OVERLAY_REQUEST_CODE = 1002
     private var cachedInstalledApps: List<Map<String, String>> = emptyList()
     private var installedAppsCacheTime: Long = 0
     private val INSTALLED_APPS_CACHE_MS = 30_000L
+    private var widgetChannel: MethodChannel? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        android.util.Log.d(
+            "MainActivity",
+            "onCreate intentAction=${intent?.action}, data=${intent?.dataString}, extrasKeys=${intent?.extras?.keySet()?.joinToString()}"
+        )
+        dispatchWidgetIntentToFlutter(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        android.util.Log.d(
+            "MainActivity",
+            "onNewIntent action=${intent.action}, data=${intent.dataString}, extrasKeys=${intent.extras?.keySet()?.joinToString()}"
+        )
+        dispatchWidgetIntentToFlutter(intent)
+    }
     
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        android.util.Log.d("MainActivity", "configureFlutterEngine called")
+
+        widgetChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL).apply {
+            setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "consumePendingWidgetPayload" -> {
+                        result.success(pendingWidgetPayload)
+                        pendingWidgetPayload = null
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+        dispatchWidgetIntentToFlutter(intent)
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+            android.util.Log.d("MainActivity", "MethodChannel call=${call.method}")
             when (call.method) {
                 "requestPermissions" -> {
                     requestPermissions()
@@ -83,6 +119,28 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
+
+    private fun dispatchWidgetIntentToFlutter(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme != "krama") return
+
+        val action = data.host ?: return
+        val taskId = data.getQueryParameter("taskId")
+
+        android.util.Log.d(
+            "MainActivity",
+            "dispatchWidgetIntentToFlutter action=$action taskId=$taskId"
+        )
+
+        val payload = hashMapOf<String, Any?>(
+            "action" to action,
+            "taskId" to taskId,
+            "uri" to data.toString(),
+        )
+        pendingWidgetPayload = payload
+    }
+
+    private var pendingWidgetPayload: HashMap<String, Any?>? = null
     
     private fun requestPermissions() {
         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)

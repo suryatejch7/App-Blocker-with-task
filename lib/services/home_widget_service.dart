@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/task.dart';
 
 /// Service for managing Android home screen widget data synchronization.
@@ -18,6 +19,10 @@ class HomeWidgetService {
   static const String _keyTaskCount = 'task_count';
   static const String _keyNextTask = 'next_task';
   static const String _keyLastUpdate = 'last_update';
+  static const String _keyWidgetIsDark = 'widget_is_dark';
+  static const String _themeKey = 'theme_mode';
+  static const String lastWidgetToggleAtKey = 'last_widget_toggle_at_ms';
+  static const String pendingWidgetTogglesKey = 'pending_widget_toggles';
 
   static final HomeWidgetService _instance = HomeWidgetService._internal();
   factory HomeWidgetService() => _instance;
@@ -42,7 +47,10 @@ class HomeWidgetService {
   /// Call this whenever tasks are added, updated, or removed
   Future<bool> updateWidgetWithTasks(List<Task> tasks) async {
     try {
-      // Filter to today's tasks and sort by start time
+      await HomeWidget.setAppGroupId(_appGroupId);
+      final isDarkMode = await _readIsDarkTheme();
+
+      // Filter strictly to today's tasks and sort by deadline
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
@@ -52,11 +60,9 @@ class HomeWidgetService {
           task.startTime.month,
           task.startTime.day,
         );
-        // Include today's tasks and overdue incomplete tasks
-        return taskDate.isAtSameMomentAs(today) ||
-            (taskDate.isBefore(today) && !task.completed);
+        return taskDate.isAtSameMomentAs(today);
       }).toList()
-        ..sort((a, b) => a.startTime.compareTo(b.startTime));
+        ..sort((a, b) => a.endTime.compareTo(b.endTime));
 
       // Serialize tasks for widget
       final tasksJson = todayTasks
@@ -66,6 +72,7 @@ class HomeWidgetService {
                 'description': task.description,
                 'startTime': _formatTime(task.startTime),
                 'endTime': _formatTime(task.endTime),
+                'deadlineText': _formatTime(task.endTime),
                 'completed': task.completed,
                 'isOverdue': task.isOverdue,
                 'isActive': task.isActive,
@@ -105,6 +112,8 @@ class HomeWidgetService {
         DateTime.now().toIso8601String(),
       );
 
+      await HomeWidget.saveWidgetData<bool>(_keyWidgetIsDark, isDarkMode);
+
       // Trigger widget update
       await HomeWidget.updateWidget(
         androidName: _androidWidgetName,
@@ -117,6 +126,24 @@ class HomeWidgetService {
     } catch (e, stackTrace) {
       debugPrint('❌ HomeWidgetService: Error updating widget: $e');
       debugPrint('📍 Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
+  /// Update only the widget theme without changing task data.
+  Future<bool> updateWidgetTheme(bool isDarkMode) async {
+    try {
+      await HomeWidget.setAppGroupId(_appGroupId);
+      await HomeWidget.saveWidgetData<bool>(_keyWidgetIsDark, isDarkMode);
+      await HomeWidget.updateWidget(
+        androidName: _androidWidgetName,
+        qualifiedAndroidName: 'com.android.krama.$_androidWidgetName',
+      );
+      debugPrint(
+          '✅ HomeWidgetService: Widget theme updated (dark=$isDarkMode)');
+      return true;
+    } catch (e) {
+      debugPrint('❌ HomeWidgetService: Error updating widget theme: $e');
       return false;
     }
   }
@@ -155,6 +182,16 @@ class HomeWidgetService {
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
     return '$displayHour:$minute $period';
+  }
+
+  Future<bool> _readIsDarkTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_themeKey) ?? false;
+    } catch (e) {
+      debugPrint('⚠️ HomeWidgetService: Unable to read theme preference: $e');
+      return false;
+    }
   }
 
   /// Clear all widget data
@@ -199,13 +236,60 @@ class HomeWidgetService {
 Future<void> backgroundCallback(Uri? uri) async {
   debugPrint('🔔 HomeWidget background callback: $uri');
 
-  if (uri != null) {
-    // Handle different widget actions
-    final action = uri.host;
-    final taskId = uri.queryParameters['taskId'];
+  if (uri == null) return;
 
-    debugPrint('🔔 Widget action: $action, taskId: $taskId');
+  final action = uri.host;
+  final taskId = uri.queryParameters['taskId'];
+  debugPrint('🔔 Widget action: $action, taskId: $taskId');
 
-    // Actions are handled when app opens via getWidgetClickUri()
+  if (action != 'toggle-task' || taskId == null || taskId.isEmpty) return;
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+
+    // CRITICAL: Reload to clear memory cache, otherwise it will revive already processed events
+    // that the foreground isolate deleted, leading to stale events toggling tasks backward!
+    await prefs.reload();
+
+    final pendingEvents =
+        prefs.getStringList(HomeWidgetService.pendingWidgetTogglesKey) ??
+            <String>[];
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final eventId = '$nowMs:$taskId';
+    final eventPayload = jsonEncode({
+      'eventId': eventId,
+      'taskId': taskId,
+      'ts': nowMs,
+    });
+
+    pendingEvents.add(eventPayload);
+
+    // Keep queue bounded in case the app is backgrounded for long periods.
+    if (pendingEvents.length > 200) {
+      pendingEvents.removeRange(0, pendingEvents.length - 200);
+    }
+
+    await prefs.setStringList(
+      HomeWidgetService.pendingWidgetTogglesKey,
+      pendingEvents,
+    );
+
+    await prefs.setInt(
+      HomeWidgetService.lastWidgetToggleAtKey,
+      nowMs,
+    );
+
+    // IMPORTANT:
+    // Do NOT mutate widget task state optimistically here.
+    // The widget's source of truth is TaskProvider -> offline cache.
+    // Optimistic local flips here can race with foreground sync and cause
+    // previously toggled tasks to appear reverted/flipped.
+    // We only queue events; the poller applies them and then syncs widget data.
+
+    debugPrint('✅ Background widget toggle queued for task: $taskId');
+  } catch (e, stackTrace) {
+    debugPrint('❌ Background widget toggle failed: $e');
+    debugPrint('📍 Stack trace: $stackTrace');
   }
 }

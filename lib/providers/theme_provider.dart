@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/home_widget_service.dart';
 
 class ThemeProvider extends ChangeNotifier {
   static const String _themeKey = 'theme_mode';
+  final _homeWidgetService = HomeWidgetService();
 
   ThemeMode _themeMode = ThemeMode.light;
 
@@ -18,6 +20,7 @@ class ThemeProvider extends ChangeNotifier {
     final isDark = prefs.getBool(_themeKey) ?? false; // Default to light
     _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
+    await _homeWidgetService.updateWidgetTheme(isDark);
   }
 
   Future<void> toggleTheme() async {
@@ -27,6 +30,7 @@ class ThemeProvider extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_themeKey, _themeMode == ThemeMode.dark);
+    await _homeWidgetService.updateWidgetTheme(_themeMode == ThemeMode.dark);
   }
 
   Future<void> setTheme(ThemeMode mode) async {
@@ -35,5 +39,6 @@ class ThemeProvider extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_themeKey, mode == ThemeMode.dark);
+    await _homeWidgetService.updateWidgetTheme(mode == ThemeMode.dark);
   }
 }

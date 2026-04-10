@@ -417,7 +417,6 @@ class _TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final timeFormat = DateFormat('h:mm a');
-    final isActive = task.isActive;
     final isOverdue = task.isOverdue;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -432,134 +431,145 @@ class _TaskCard extends StatelessWidget {
         : (isDark ? AppTheme.lightGray : AppTheme.lightBorder);
     final borderWidth = isOverdue ? 1.6 : 1.0;
 
-    final hasBottomChips = task.repeatSettings != 'none' || isActive;
+    final hasBottomChips = task.repeatSettings != 'none';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: borderWidth),
-      ),
-      child: InkWell(
-        onTap: () => context.push('/edit', extra: task),
-        onLongPress: () => _confirmDelete(context, taskProvider, task),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    return Opacity(
+        opacity: task.completed ? 0.5 : 1.0,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: borderWidth),
+          ),
+          child: InkWell(
+            onTap: () => context.push('/edit', extra: task),
+            onLongPress: () => _confirmDelete(context, taskProvider, task),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      taskProvider.toggleComplete(task.id);
-                    },
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: task.completed ? AppTheme.blue : subtextColor,
-                          width: 2,
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.mediumImpact();
+                          taskProvider.toggleComplete(task.id);
+                        },
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  task.completed ? AppTheme.blue : subtextColor,
+                              width: 2,
+                            ),
+                            color: task.completed
+                                ? AppTheme.blue
+                                : Colors.transparent,
+                          ),
+                          child: task.completed
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: AppTheme.white,
+                                )
+                              : null,
                         ),
-                        color:
-                            task.completed ? AppTheme.blue : Colors.transparent,
                       ),
-                      child: task.completed
-                          ? const Icon(
-                              Icons.check,
-                              size: 16,
-                              color: AppTheme.white,
-                            )
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      task.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            decoration: task.completed
-                                ? TextDecoration.lineThrough
-                                : null,
-                            color: task.completed ? subtextColor : textColor,
-                          ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: textColor,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 14,
-                    color: isOverdue ? Colors.red : subtextColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Due ${timeFormat.format(task.endTime)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isOverdue ? Colors.red : subtextColor,
-                          ),
-                    ),
-                  ),
-                  _TaskChip(
-                    label: task.restrictionMode == 'default'
-                        ? 'Default'
-                        : 'Custom',
-                    color: AppTheme.blue,
-                    icon: Icons.lock,
-                  ),
-                ],
-              ),
-              if (task.description?.isNotEmpty ?? false) ...[
-                const SizedBox(height: 6),
-                Text(
-                  task.description!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: subtextColor,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          task.title,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                decoration: task.completed
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                color:
+                                    task.completed ? subtextColor : textColor,
+                              ),
+                        ),
                       ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              if (hasBottomChips) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    if (task.repeatSettings != 'none')
-                      _TaskChip(
-                        label: task.repeatSettings,
-                        color: accentColor,
-                        icon: Icons.repeat,
-                      ),
-                    if (isActive) ...[
-                      const SizedBox(width: 8),
-                      _TaskChip(
-                        label: 'Active',
-                        color: accentColor,
+                      Icon(
+                        Icons.chevron_right,
+                        color: textColor,
+                        size: 20,
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2.0, left: 4.0),
+                        child: Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: isOverdue ? Colors.red : subtextColor,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 2.0),
+                          child: Text(
+                            'Due ${timeFormat.format(task.endTime)}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: isOverdue ? Colors.red : subtextColor,
+                                ),
+                          ),
+                        ),
+                      ),
+                      _TaskChip(
+                        label: task.restrictionMode == 'default'
+                            ? 'Default'
+                            : 'Custom',
+                        color: AppTheme.blue,
+                        icon: Icons.lock,
+                      ),
+                    ],
+                  ),
+                  if (task.description?.isNotEmpty ?? false) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      task.description!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: subtextColor,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
-                ),
-              ],
-            ],
+                  if (hasBottomChips) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (task.repeatSettings != 'none')
+                          _TaskChip(
+                            label: task.repeatSettings,
+                            color: accentColor,
+                            icon: Icons.repeat,
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
-    );
+        ));
   }
 }
 

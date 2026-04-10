@@ -5,69 +5,72 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/widget_background"
-    android:padding="12dp">
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="0dp"
+    android:paddingBottom="6dp">
 
-    <!-- Header -->
-    <RelativeLayout
+    <LinearLayout
         android:id="@+id/widget_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="8dp">
+        android:orientation="horizontal"
+        android:paddingTop="4dp"
+        android:gravity="center_vertical">
 
         <TextView
-            android:id="@+id/widget_title"
-            android:layout_width="wrap_content"
+            android:id="@+id/widget_date"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:text="@string/widget_title_default"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF" />
-
-        <TextView
-            android:id="@+id/widget_subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/widget_title"
-            android:layout_alignParentStart="true"
-            android:text="@string/widget_subtitle_default"
+            android:layout_weight="1"
+            android:text="April 10th"
             android:textSize="12sp"
-            android:textColor="#B0B0B0"
-            android:layout_marginTop="2dp" />
+            android:textStyle="bold"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="#FFFFFF" />
 
         <TextView
-            android:id="@+id/widget_refresh_button"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:gravity="center"
-            android:text="⟳"
-            android:textSize="20sp"
-            android:textColor="#FFFFFF" />
-    </RelativeLayout>
+            android:id="@+id/widget_header_middle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0"
+            android:alpha="0"
+            android:text=""
+            android:clickable="true"
+            android:focusable="true" />
 
-    <!-- Divider -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#333333" />
+        <ImageView
+            android:id="@+id/widget_add_button"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@drawable/widget_add_button_background"
+            android:contentDescription="Add task"
+            android:src="@android:drawable/ic_input_add"
+            android:scaleType="fitCenter"
+            android:padding="6dp"
+            android:tint="#FFFFFF"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
 
-    <!-- Task List (scrollable) - ListView for widget -->
     <ListView
         android:id="@+id/widget_task_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="8dp"
+        android:layout_weight="9"
+        android:layout_marginTop="4dp"
+        android:listSelector="@android:color/transparent"
         android:divider="@android:color/transparent"
-        android:dividerHeight="4dp" />
+        android:dividerHeight="3dp"
+        android:scrollbars="none" />
 
-    <!-- Empty State -->
     <LinearLayout
         android:id="@+id/widget_empty_state"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="9"
         android:gravity="center"
         android:orientation="vertical"
         android:visibility="gone">
@@ -76,24 +79,25 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="✨"
-            android:textSize="32sp" />
+            android:textSize="18sp" />
 
         <TextView
             android:id="@+id/widget_empty_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/widget_no_tasks"
-            android:textSize="14sp"
+            android:text="No tasks today"
+            android:textSize="11sp"
             android:textColor="#B0B0B0"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="4dp" />
 
         <TextView
+            android:id="@+id/widget_empty_hint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/widget_tap_to_add"
-            android:textSize="12sp"
+            android:text="Tap + to add a task"
+            android:textSize="10sp"
             android:textColor="#888888"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="2dp" />
     </LinearLayout>
 
 </LinearLayout>

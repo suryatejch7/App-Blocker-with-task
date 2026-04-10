@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../services/restriction_service.dart';
@@ -23,6 +24,13 @@ class TaskProvider extends ChangeNotifier {
   // Store permanently blocked apps/websites (always active)
   List<String> _permanentlyBlockedApps = [];
   List<String> _permanentlyBlockedWebsites = [];
+
+  // Serialize native sync calls to avoid overlapping stale updates.
+  bool _syncRestrictionsRunning = false;
+  bool _syncRestrictionsQueued = false;
+  String? _lastRestrictionsPayloadSignature;
+  bool _tasksLoaded = false;
+  bool _hasRestrictionSnapshot = false;
 
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
@@ -70,15 +78,17 @@ class TaskProvider extends ChangeNotifier {
   }
 
   /// Trigger a re-sync after task changes (restrictions + widget)
-  Future<void> _resync() async {
+  Future<void> _resync({bool updateWidget = true}) async {
     await syncRestrictions(
       _defaultRestrictedApps,
       _defaultRestrictedWebsites,
       _permanentlyBlockedApps,
       _permanentlyBlockedWebsites,
     );
-    // Update home screen widget
-    await _updateHomeWidget();
+    if (updateWidget) {
+      // Update home screen widget
+      await _updateHomeWidget();
+    }
   }
 
   /// Update the home screen widget with current tasks
@@ -90,6 +100,14 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> syncHomeWidgetNow() async {
+    await _updateHomeWidget();
+  }
+
+  Future<void> resyncNow({bool updateWidget = true}) async {
+    await _resync(updateWidget: updateWidget);
+  }
+
   /// Syncs current task restrictions to native Android service
   /// Call this whenever tasks change or default restrictions change
   /// Permanently blocked apps are ALWAYS blocked, regardless of tasks
@@ -99,14 +117,51 @@ class TaskProvider extends ChangeNotifier {
     List<String> permanentlyBlockedApps,
     List<String> permanentlyBlockedWebsites,
   ) async {
-    debugPrint(
-        '🔄 TaskProvider.syncRestrictions - ========== SYNCING RESTRICTIONS ==========');
-
-    // Store the restrictions
+    // Always keep latest config snapshot.
     _defaultRestrictedApps = defaultRestrictedApps;
     _defaultRestrictedWebsites = defaultRestrictedWebsites;
     _permanentlyBlockedApps = permanentlyBlockedApps;
     _permanentlyBlockedWebsites = permanentlyBlockedWebsites;
+    _hasRestrictionSnapshot = true;
+
+    // Avoid pushing incomplete startup state before tasks are loaded.
+    if (!_tasksLoaded) {
+      debugPrint(
+          '⏸️ TaskProvider.syncRestrictions - deferred until initial task load completes');
+      return;
+    }
+
+    // Coalesce concurrent calls; process only latest state in a serialized loop.
+    _syncRestrictionsQueued = true;
+    if (_syncRestrictionsRunning) {
+      return;
+    }
+
+    _syncRestrictionsRunning = true;
+    try {
+      while (_syncRestrictionsQueued) {
+        _syncRestrictionsQueued = false;
+
+        await _performSyncRestrictions(
+          List<String>.from(_defaultRestrictedApps),
+          List<String>.from(_defaultRestrictedWebsites),
+          List<String>.from(_permanentlyBlockedApps),
+          List<String>.from(_permanentlyBlockedWebsites),
+        );
+      }
+    } finally {
+      _syncRestrictionsRunning = false;
+    }
+  }
+
+  Future<void> _performSyncRestrictions(
+    List<String> defaultRestrictedApps,
+    List<String> defaultRestrictedWebsites,
+    List<String> permanentlyBlockedApps,
+    List<String> permanentlyBlockedWebsites,
+  ) async {
+    debugPrint(
+        '🔄 TaskProvider.syncRestrictions - ========== SYNCING RESTRICTIONS ==========');
 
     // Get all active or overdue tasks
     final relevantTasks = _tasks
@@ -168,17 +223,38 @@ class TaskProvider extends ChangeNotifier {
             })
         .toList();
 
+    final sortedApps = appsToRestrict.toList()..sort();
+    final sortedWebsites = websitesToRestrict.toList()..sort();
+    final sortedPendingTaskIds = relevantTasks.map((t) => t.id).toList()
+      ..sort();
+
+    final payloadSignature = jsonEncode({
+      'apps': sortedApps,
+      'websites': sortedWebsites,
+      'active': shouldBeActive,
+      'pendingTaskIds': sortedPendingTaskIds,
+      'permanentApps': [...permanentlyBlockedApps]..sort(),
+      'permanentWebsites': [...permanentlyBlockedWebsites]..sort(),
+    });
+
+    if (payloadSignature == _lastRestrictionsPayloadSignature) {
+      debugPrint(
+          '⏭️ TaskProvider.syncRestrictions - Skipping native sync (no effective change)');
+      return;
+    }
+
     try {
       debugPrint('📡 Sending to native Android service...');
       final nativeServiceConnected =
           await _restrictionService.updateRestrictions(
-        appsToRestrict.toList(),
-        websitesToRestrict.toList(),
+        sortedApps,
+        sortedWebsites,
         shouldBeActive,
         pendingTasks: pendingTasksInfo,
         permanentlyBlockedApps: permanentlyBlockedApps,
         permanentlyBlockedWebsites: permanentlyBlockedWebsites,
       );
+      _lastRestrictionsPayloadSignature = payloadSignature;
       if (nativeServiceConnected) {
         debugPrint(
             '✅ TaskProvider.syncRestrictions - Successfully synced to native!');
@@ -211,6 +287,7 @@ class TaskProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final wasLoaded = _tasksLoaded;
       if (!_offlineCacheService.isInitialized) {
         await _offlineCacheService.initialize();
       }
@@ -233,6 +310,18 @@ class TaskProvider extends ChangeNotifier {
       }
       // Update home screen widget after loading tasks
       await _updateHomeWidget();
+
+      _tasksLoaded = true;
+
+      // Run exactly one deferred initial restriction sync after first task load.
+      if (!wasLoaded && _hasRestrictionSnapshot) {
+        await syncRestrictions(
+          _defaultRestrictedApps,
+          _defaultRestrictedWebsites,
+          _permanentlyBlockedApps,
+          _permanentlyBlockedWebsites,
+        );
+      }
     } catch (e, stackTrace) {
       debugPrint('❌ TaskProvider._load - Error loading tasks: $e');
       debugPrint('📍 Stack trace: $stackTrace');
@@ -394,7 +483,11 @@ class TaskProvider extends ChangeNotifier {
 
   /// Toggles task completion status with optimistic update and rollback on error.
   /// Returns true if successful, false if task not found or operation pending.
-  Future<bool> toggleComplete(String id) async {
+  Future<bool> toggleComplete(
+    String id, {
+    bool updateWidget = true,
+    bool syncRestrictions = true,
+  }) async {
     // Prevent duplicate operations (critical for double-tap prevention)
     final operationKey = 'toggle_$id';
     if (_pendingOperations.contains(operationKey)) {
@@ -428,8 +521,12 @@ class TaskProvider extends ChangeNotifier {
       await _offlineCacheService.upsertTask(_tasks[i].toJson());
       debugPrint('✅ TaskProvider.toggleComplete - Saved locally');
 
-      // Sync restrictions to native service
-      await _resync();
+      // Sync restrictions/widget unless caller is performing a batched apply.
+      if (syncRestrictions) {
+        await _resync(updateWidget: updateWidget);
+      } else if (updateWidget) {
+        await _updateHomeWidget();
+      }
       return true;
     } catch (e, stackTrace) {
       debugPrint('❌ TaskProvider.toggleComplete - Error: $e');
@@ -485,5 +582,8 @@ class TaskProvider extends ChangeNotifier {
     // Remove from local list
     _tasks.removeWhere((task) => completedYesterday.contains(task));
     notifyListeners();
+
+    // Refresh restrictions and widget data after rolling over to a new day.
+    await _resync();
   }
 }

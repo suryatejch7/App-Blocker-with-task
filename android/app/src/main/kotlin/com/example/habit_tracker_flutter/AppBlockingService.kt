@@ -60,7 +60,7 @@ class AppBlockingService : AccessibilityService() {
             android.util.Log.d("AppBlockingService", "Apps to restrict (${apps.size}): $apps")
             android.util.Log.d("AppBlockingService", "Websites to restrict (${websites.size}): $websites")
             android.util.Log.d("AppBlockingService", "Active: $active")
-            android.util.Log.d("AppBlockingService", "Pending tasks: ${tasks.size}")
+            android.util.Log.d("AppBlockingService", "Active/overdue task payload entries: ${tasks.size}")
             android.util.Log.d("AppBlockingService", "Permanently blocked apps: ${permanentApps.size}")
             android.util.Log.d("AppBlockingService", "Service instance exists: ${instance != null}")
 
@@ -158,7 +158,7 @@ class AppBlockingService : AccessibilityService() {
         
         android.util.Log.d("AppBlockingService", "Loaded ${restrictedApps.size} restricted apps: $restrictedApps")
         android.util.Log.d("AppBlockingService", "Loaded ${restrictedWebsites.size} restricted websites: $restrictedWebsites")
-        android.util.Log.d("AppBlockingService", "Loaded ${pendingTasks.size} pending tasks")
+        android.util.Log.d("AppBlockingService", "Loaded ${pendingTasks.size} active/overdue task payload entries")
         android.util.Log.d("AppBlockingService", "Loaded ${permanentlyBlockedApps.size} permanently blocked apps")
         android.util.Log.d("AppBlockingService", "========== LOAD COMPLETE ==========")
     }

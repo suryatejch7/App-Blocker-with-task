@@ -24,6 +24,10 @@ class OfflineCacheService {
 
   bool get isInitialized => _isInitialized;
 
+  Map<String, dynamic> _safeMap(dynamic value) {
+    return Map<String, dynamic>.from(value as Map);
+  }
+
   /// Initialize Hive and open boxes
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -52,6 +56,11 @@ class OfflineCacheService {
         await _restrictionsBox.put('permanent_websites', {'items': <String>[]});
       }
 
+      // Legacy remote-sync queue is no longer used in local-only flow.
+      if (_pendingOperationsBox.isNotEmpty) {
+        await _pendingOperationsBox.clear();
+      }
+
       _isInitialized = true;
       debugPrint('✅ OfflineCacheService initialized');
     } catch (e, stackTrace) {
@@ -66,11 +75,23 @@ class OfflineCacheService {
   /// Cache all tasks locally
   Future<void> cacheTasks(List<Map<String, dynamic>> tasks) async {
     try {
-      await _tasksBox.clear();
-      for (var task in tasks) {
-        final id = task['id'] as String;
-        await _tasksBox.put(id, Map<String, dynamic>.from(task));
+      final incoming = <String, Map>{
+        for (final task in tasks)
+          task['id'] as String: Map<String, dynamic>.from(task),
+      };
+
+      final toDelete = _tasksBox.keys
+          .where((key) => !incoming.containsKey(key))
+          .toList(growable: false);
+      if (toDelete.isNotEmpty) {
+        await _tasksBox.deleteAll(toDelete);
       }
+
+      if (incoming.isNotEmpty) {
+        await _tasksBox.putAll(incoming);
+      }
+
+      await _tasksBox.flush();
       await _metadataBox.put(
           'tasks_last_sync', DateTime.now().toIso8601String());
       debugPrint('✅ Cached ${tasks.length} tasks locally');
@@ -82,8 +103,7 @@ class OfflineCacheService {
   /// Get all cached tasks
   List<Map<String, dynamic>> getCachedTasks() {
     try {
-      final tasks =
-          _tasksBox.values.map((e) => Map<String, dynamic>.from(e)).toList();
+      final tasks = _tasksBox.values.map(_safeMap).toList();
       debugPrint('📦 Retrieved ${tasks.length} tasks from cache');
       return tasks;
     } catch (e) {
@@ -97,6 +117,7 @@ class OfflineCacheService {
     try {
       final id = task['id'] as String;
       await _tasksBox.put(id, Map<String, dynamic>.from(task));
+      await _tasksBox.flush();
       debugPrint('✅ Cached task: $id');
     } catch (e) {
       debugPrint('❌ Error caching task: $e');
@@ -106,6 +127,7 @@ class OfflineCacheService {
   /// Upsert task and persist immediately
   Future<void> upsertTask(Map<String, dynamic> task) async {
     await cacheTask(task);
+    await _tasksBox.flush();
     await _metadataBox.put('tasks_last_sync', DateTime.now().toIso8601String());
   }
 
@@ -113,6 +135,7 @@ class OfflineCacheService {
   Future<void> removeCachedTask(String id) async {
     try {
       await _tasksBox.delete(id);
+      await _tasksBox.flush();
       debugPrint('✅ Removed task from cache: $id');
     } catch (e) {
       debugPrint('❌ Error removing task from cache: $e');
@@ -135,9 +158,7 @@ class OfflineCacheService {
   /// Return archived tasks
   List<Map<String, dynamic>> getArchivedTasks() {
     try {
-      return _archivedTasksBox.values
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+      return _archivedTasksBox.values.map(_safeMap).toList();
     } catch (e) {
       debugPrint('❌ Error getting archived tasks: $e');
       return [];
@@ -148,7 +169,7 @@ class OfflineCacheService {
   Map<String, dynamic>? getCachedTask(String id) {
     try {
       final task = _tasksBox.get(id);
-      return task != null ? Map<String, dynamic>.from(task) : null;
+      return task != null ? _safeMap(task) : null;
     } catch (e) {
       debugPrint('❌ Error getting cached task: $e');
       return null;
@@ -342,13 +363,6 @@ class OfflineCacheService {
     } catch (e) {
       return null;
     }
-  }
-
-  /// Check if cache is stale (older than given duration)
-  bool isCacheStale(Duration maxAge) {
-    final lastSync = getTasksLastSync();
-    if (lastSync == null) return true;
-    return DateTime.now().difference(lastSync) > maxAge;
   }
 
   /// Clear all cached data

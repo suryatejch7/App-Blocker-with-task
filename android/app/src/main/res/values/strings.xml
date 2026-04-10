@@ -5,8 +5,4 @@
     <string name="widget_name">Task Widget</string>
     <string name="widget_description">View and manage your daily tasks from the home screen</string>
     <string name="loading">Loading…</string>
-    <string name="widget_title_default">📋 Today\'s Tasks</string>
-    <string name="widget_subtitle_default">0 tasks</string>
-    <string name="widget_no_tasks">No tasks for today</string>
-    <string name="widget_tap_to_add">Tap to add a task</string>
 </resources>

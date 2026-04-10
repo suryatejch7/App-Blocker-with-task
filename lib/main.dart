@@ -19,21 +19,14 @@ import 'theme/app_theme.dart';
 import 'utils/responsive.dart';
 
 void main() async {
-  debugPrint('🚀 ========== APP STARTING ==========');
+  debugPrint = (String? message, {int? wrapWidth}) {};
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('✅ Flutter binding initialized');
 
   // Initialize Home Widget Service
   try {
-    debugPrint('🔵 Initializing home widget service...');
     await HomeWidgetService().initialize();
-    debugPrint('✅ Home widget service initialized');
-  } catch (e, stackTrace) {
-    debugPrint('❌ Failed to initialize home widget service: $e');
-    debugPrint('📍 Stack trace: $stackTrace');
-  }
+  } catch (_) {}
 
-  debugPrint('🚀 Running app...');
   runApp(const HabitApp());
 }
 
@@ -86,13 +79,6 @@ class HabitApp extends StatelessWidget {
                   permanentWebsites,
                 );
               };
-              // Do initial sync
-              taskProvider.syncRestrictions(
-                restrictionsProvider.defaultRestrictedApps,
-                restrictionsProvider.defaultRestrictedWebsites,
-                restrictionsProvider.permanentlyBlockedApps,
-                restrictionsProvider.permanentlyBlockedWebsites,
-              );
             }
             return taskProvider ?? TaskProvider();
           },
