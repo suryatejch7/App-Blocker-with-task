@@ -202,8 +202,7 @@ class _TasksTab extends StatefulWidget {
 }
 
 class _TasksTabState extends State<_TasksTab> {
-  final Set<String> _expandedDateSections = <String>{};
-  bool _isCompletedExpanded = false;
+  String? _activeStripTab;
 
   String _dateKey(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -277,47 +276,106 @@ class _TasksTabState extends State<_TasksTab> {
               ...todayTasks.map((task) => _TaskCard(task: task)),
               const SizedBox(height: 14),
             ],
-            ...futureTaskEntries.expand((entry) {
-              final date = entry.key;
-              final tasks = entry.value;
-              final sectionKey = _dateKey(date);
-              final isExpanded = _expandedDateSections.contains(sectionKey);
+            if (completedTasks.isNotEmpty || futureTaskEntries.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 4, bottom: 16),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (completedTasks.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: _buildStripItem(
+                            context: context,
+                            icon: Icons.check_circle_outline,
+                            label: 'Completed',
+                            isSelected: _activeStripTab == 'completed',
+                            onTap: () {
+                              setState(() {
+                                _activeStripTab = _activeStripTab == 'completed'
+                                    ? null
+                                    : 'completed';
+                              });
+                            },
+                          ),
+                        ),
+                      ...futureTaskEntries.map((entry) {
+                        final date = entry.key;
+                        final sectionKey = _dateKey(date);
+                        final isDark =
+                            Theme.of(context).brightness == Brightness.dark;
+                        final subtextColor = isDark
+                            ? AppTheme.white.withOpacity(0.6)
+                            : AppTheme.lightTextSecondary;
+                        final accentColor =
+                            isDark ? AppTheme.yellow : AppTheme.orange;
+                        final activeColor = _activeStripTab == sectionKey
+                            ? accentColor
+                            : subtextColor;
 
-              return [
-                _buildSectionHeader(
-                  context,
-                  DateFormat('EEEE, MMM d').format(date),
-                  tasks.length,
-                  isExpanded: isExpanded,
-                  onTap: () {
-                    setState(() {
-                      if (isExpanded) {
-                        _expandedDateSections.remove(sectionKey);
-                      } else {
-                        _expandedDateSections.add(sectionKey);
-                      }
-                    });
-                  },
+                        final calendarIcon = Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Icon(Icons.calendar_today,
+                                size: 20, color: activeColor),
+                            Positioned(
+                              top: 7,
+                              child: Text(
+                                '${date.day}',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: activeColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: _buildStripItem(
+                            context: context,
+                            customIcon: calendarIcon,
+                            label: DateFormat('MMM d').format(date),
+                            isSelected: _activeStripTab == sectionKey,
+                            onTap: () {
+                              setState(() {
+                                _activeStripTab = _activeStripTab == sectionKey
+                                    ? null
+                                    : sectionKey;
+                              });
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
-                if (isExpanded) const SizedBox(height: 12),
-                if (isExpanded) ...tasks.map((task) => _TaskCard(task: task)),
-                SizedBox(height: isExpanded ? 14 : 4),
-              ];
-            }),
-            if (completedTasks.isNotEmpty) ...[
-              _buildSectionHeader(
-                context,
-                'Completed',
-                completedTasks.length,
-                isCompleted: true,
-                isExpanded: _isCompletedExpanded,
-                onTap: () => setState(
-                    () => _isCompletedExpanded = !_isCompletedExpanded),
               ),
-              if (_isCompletedExpanded) const SizedBox(height: 12),
-              if (_isCompletedExpanded)
-                ...completedTasks.map((task) => _TaskCard(task: task)),
-            ],
+
+            // Dropdown tasks view
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_activeStripTab == 'completed' &&
+                      completedTasks.isNotEmpty)
+                    ...completedTasks.map((task) => _TaskCard(task: task)),
+                  if (_activeStripTab != null && _activeStripTab != 'completed')
+                    ...futureTaskEntries
+                        .where((e) => _dateKey(e.key) == _activeStripTab)
+                        .expand((e) => e.value)
+                        .map((task) => _TaskCard(task: task)),
+                ],
+              ),
+            ),
           ],
         );
 
@@ -404,6 +462,57 @@ class _TasksTabState extends State<_TasksTab> {
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: header,
+    );
+  }
+
+  Widget _buildStripItem({
+    required BuildContext context,
+    IconData? icon,
+    Widget? customIcon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+    final activeColor = isSelected ? accentColor : subtextColor;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color:
+              isSelected ? activeColor.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? activeColor.withOpacity(0.3)
+                : subtextColor.withOpacity(0.2),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (customIcon != null)
+              customIcon
+            else if (icon != null)
+              Icon(icon, size: 20, color: activeColor),
+            if (customIcon != null || icon != null) const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: activeColor,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1051,15 +1160,21 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
           : provider.defaultRestrictedApps;
 
       if (!mounted) return;
-      final selectedApps = await showDialog<List<String>>(
+      final selectedApps = await showModalBottomSheet<List<String>>(
         context: ctx,
-        builder: (dialogContext) => MediaQuery.removeViewInsets(
-          context: dialogContext,
-          removeBottom: true,
-          child: _DefaultAppSelectorDialog(
-            installedApps: installedApps,
-            alreadyRestricted: alreadyBlocked,
-            isPermanent: isPermanent,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (dialogContext) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(dialogContext).viewInsets.bottom,
+          ),
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.85,
+            child: _DefaultAppSelectorDialog(
+              installedApps: installedApps,
+              alreadyRestricted: alreadyBlocked,
+              isPermanent: isPermanent,
+            ),
           ),
         ),
       );
@@ -1090,58 +1205,16 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
   Future<void> _showAddWebsiteDialog(
       RestrictionsProvider provider, bool isPermanent) async {
     final ctx = context;
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
 
-    final result = await showDialog<String>(
+    final result = await showModalBottomSheet<String>(
       context: ctx,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(isPermanent ? 'Block Website Forever' : 'Add Website'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter domain or URL:',
-                style: Theme.of(dialogContext).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., youtube.com or https://youtube.com',
-                  prefixIcon: Icon(Icons.language),
-                ),
-                keyboardType: TextInputType.url,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a domain';
-                  }
-                  return null;
-                },
-              ),
-            ],
-          ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (dialogContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(dialogContext).viewInsets.bottom,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(dialogContext, controller.text.trim());
-              }
-            },
-            style: isPermanent
-                ? ElevatedButton.styleFrom(backgroundColor: Colors.red)
-                : null,
-            child: Text(isPermanent ? 'Block Forever' : 'Add'),
-          ),
-        ],
+        child: _AddWebsiteBottomSheet(isPermanent: isPermanent),
       ),
     );
 
@@ -1428,371 +1501,320 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final bgColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
 
-    return Dialog(
-      insetAnimationDuration: Duration.zero,
-      backgroundColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isDark
-                ? AppTheme.lightGray.withOpacity(0.45)
-                : AppTheme.lightBorder,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
         ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 10, 10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
+            blurRadius: 30,
+            offset: const Offset(0, -10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Drag Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 5,
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(isDark ? 0.12 : 0.08),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
+                color: isDark ? AppTheme.lightGray : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 10, 16, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.isPermanent
+                            ? 'Block Apps Forever'
+                            : 'Select Apps to Block',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: textColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_filteredApps.length} available • ${_selectedApps.length} selected',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: subtextColor,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tap apps to multi-select',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: subtextColor.withOpacity(0.85),
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
+                IconButton(
+                  tooltip: _isSearchVisible ? 'Hide search' : 'Search apps',
+                  onPressed: _toggleSearch,
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    transitionBuilder: (child, animation) => RotationTransition(
+                      turns:
+                          Tween<double>(begin: 0.85, end: 1).animate(animation),
+                      child: FadeTransition(opacity: animation, child: child),
+                    ),
+                    child: Icon(
+                      _isSearchVisible ? Icons.search_off : Icons.search,
+                      key: ValueKey(_isSearchVisible),
+                    ),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _selectedApps.isEmpty
+                      ? null
+                      : () => Navigator.pop(
+                            context,
+                            _selectedApps.toList(),
+                          ),
+                  style: widget.isPermanent
+                      ? ElevatedButton.styleFrom(backgroundColor: Colors.red)
+                      : null,
+                  icon: Icon(widget.isPermanent ? Icons.block : Icons.add,
+                      size: 18),
+                  label: Text(widget.isPermanent ? 'Block Forever' : 'Add'),
+                ),
+              ],
+            ),
+          ),
+          if (widget.isPermanent) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
+                  const Icon(Icons.warning_amber, color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
                   Expanded(
+                    child: Text(
+                      'These apps will be blocked 24/7, regardless of tasks',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) => SizeTransition(
+              sizeFactor: animation,
+              axisAlignment: -1,
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: _isSearchVisible
+                ? Padding(
+                    key: const ValueKey('search-visible'),
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                    child: TextField(
+                      focusNode: _searchFocusNode,
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search apps or package...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _onSearchChanged('');
+                                  setState(() {});
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: isDark
+                            ? AppTheme.black.withOpacity(0.30)
+                            : AppTheme.lightBackground,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12, horizontal: 12),
+                      ),
+                      onChanged: (value) {
+                        _onSearchChanged(value);
+                        setState(() {});
+                      },
+                    ),
+                  )
+                : const SizedBox(key: ValueKey('search-hidden')),
+          ),
+          Expanded(
+            child: _filteredApps.isEmpty
+                ? Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        Icon(Icons.search_off,
+                            size: 44,
+                            color: isDark
+                                ? AppTheme.white.withOpacity(0.45)
+                                : AppTheme.lightTextSecondary),
+                        const SizedBox(height: 10),
                         Text(
-                          widget.isPermanent
-                              ? 'Block Apps Forever'
-                              : 'Select Apps to Block',
+                          'No apps found',
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     color: textColor,
-                                    fontWeight: FontWeight.w700,
                                   ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(
-                          '${_filteredApps.length} available • ${_selectedApps.length} selected',
+                          'Try a different app name or package',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: subtextColor,
                                   ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Tap apps to multi-select',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: subtextColor.withOpacity(0.85),
-                                  ),
-                        ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    tooltip: _isSearchVisible ? 'Hide search' : 'Search apps',
-                    onPressed: _toggleSearch,
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      transitionBuilder: (child, animation) =>
-                          RotationTransition(
-                        turns: Tween<double>(begin: 0.85, end: 1)
-                            .animate(animation),
-                        child: FadeTransition(opacity: animation, child: child),
-                      ),
-                      child: Icon(
-                        _isSearchVisible ? Icons.search_off : Icons.search,
-                        key: ValueKey(_isSearchVisible),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            if (widget.isPermanent) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber,
-                        color: Colors.red, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'These apps will be blocked 24/7, regardless of tasks',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.red.shade700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) => SizeTransition(
-                sizeFactor: animation,
-                axisAlignment: -1,
-                child: FadeTransition(opacity: animation, child: child),
-              ),
-              child: _isSearchVisible
-                  ? Padding(
-                      key: const ValueKey('search-visible'),
-                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-                      child: TextField(
-                        focusNode: _searchFocusNode,
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search apps or package...',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    _onSearchChanged('');
-                                    setState(() {});
-                                  },
-                                )
-                              : null,
-                          filled: true,
-                          fillColor: isDark
-                              ? AppTheme.black.withOpacity(0.30)
-                              : AppTheme.lightBackground,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12, horizontal: 12),
-                        ),
-                        onChanged: (value) {
-                          _onSearchChanged(value);
-                          setState(() {});
-                        },
-                      ),
-                    )
-                  : const SizedBox(key: ValueKey('search-hidden')),
-            ),
-            Expanded(
-              child: _filteredApps.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.search_off,
-                              size: 44,
-                              color: isDark
-                                  ? AppTheme.white.withOpacity(0.45)
-                                  : AppTheme.lightTextSecondary),
-                          const SizedBox(height: 10),
-                          Text(
-                            'No apps found',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  color: textColor,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Try a different app name or package',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: subtextColor,
-                                    ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                      itemCount: _filteredApps.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final app = _filteredApps[index];
-                        final packageName = app['packageName'] as String;
-                        final appName = app['name'] as String;
-                        final isSelected = _selectedApps.contains(packageName);
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    itemCount: _filteredApps.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final app = _filteredApps[index];
+                      final packageName = app['packageName'] as String;
+                      final appName = app['name'] as String;
+                      final isSelected = _selectedApps.contains(packageName);
 
-                        return Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedApps.remove(packageName);
-                                } else {
-                                  _selectedApps.add(packageName);
-                                }
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              curve: Curves.easeOut,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
-                              decoration: BoxDecoration(
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () {
+                            setState(() {
+                              if (isSelected) {
+                                _selectedApps.remove(packageName);
+                              } else {
+                                _selectedApps.add(packageName);
+                              }
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            curve: Curves.easeOut,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? accentColor.withOpacity(0.10)
+                                  : (isDark
+                                      ? AppTheme.black.withOpacity(0.15)
+                                      : AppTheme.lightBackground),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
                                 color: isSelected
-                                    ? accentColor.withOpacity(0.10)
+                                    ? accentColor.withOpacity(0.7)
                                     : (isDark
-                                        ? AppTheme.black.withOpacity(0.15)
-                                        : AppTheme.lightBackground),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? accentColor.withOpacity(0.7)
-                                      : (isDark
-                                          ? AppTheme.lightGray.withOpacity(0.35)
-                                          : AppTheme.lightBorder),
+                                        ? AppTheme.lightGray.withOpacity(0.35)
+                                        : AppTheme.lightBorder),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    color: accentColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    widget.isPermanent
+                                        ? Icons.block
+                                        : Icons.android,
+                                    color: accentColor,
+                                    size: 18,
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: accentColor.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Icon(
-                                      widget.isPermanent
-                                          ? Icons.block
-                                          : Icons.android,
-                                      color: accentColor,
-                                      size: 18,
-                                    ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        appName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              color: textColor,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        packageName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(color: subtextColor),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          appName,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                color: textColor,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          packageName,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(color: subtextColor),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Checkbox(
-                                    value: isSelected,
-                                    activeColor: accentColor,
-                                    onChanged: (selected) {
-                                      setState(() {
-                                        if (selected == true) {
-                                          _selectedApps.add(packageName);
-                                        } else {
-                                          _selectedApps.remove(packageName);
-                                        }
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
+                                ),
+                                Checkbox(
+                                  value: isSelected,
+                                  activeColor: accentColor,
+                                  onChanged: (selected) {
+                                    setState(() {
+                                      if (selected == true) {
+                                        _selectedApps.add(packageName);
+                                      } else {
+                                        _selectedApps.remove(packageName);
+                                      }
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-            ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-              decoration: BoxDecoration(
-                color: accentColor.withOpacity(isDark ? 0.12 : 0.07),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 280;
-
-                  final confirmButton = ElevatedButton.icon(
-                    onPressed: _selectedApps.isEmpty
-                        ? null
-                        : () => Navigator.pop(
-                              context,
-                              _selectedApps.toList(),
-                            ),
-                    style: widget.isPermanent
-                        ? ElevatedButton.styleFrom(backgroundColor: Colors.red)
-                        : null,
-                    icon: Icon(widget.isPermanent ? Icons.block : Icons.check,
-                        size: 18),
-                    label: Text(
-                        widget.isPermanent ? 'Block Forever' : 'Add Selected'),
-                  );
-
-                  if (compact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Flexible(child: confirmButton),
-                          ],
                         ),
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    children: [
-                      const Spacer(),
-                      confirmButton,
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }
@@ -1843,6 +1865,224 @@ class _PillToast extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddWebsiteBottomSheet extends StatefulWidget {
+  final bool isPermanent;
+
+  const _AddWebsiteBottomSheet({required this.isPermanent});
+
+  @override
+  State<_AddWebsiteBottomSheet> createState() => _AddWebsiteBottomSheetState();
+}
+
+class _AddWebsiteBottomSheetState extends State<_AddWebsiteBottomSheet> {
+  final _controller = TextEditingController();
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(
+        const Duration(milliseconds: 100), () => _focusNode.requestFocus());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _insertText(String text) {
+    if (_controller.selection.baseOffset >= 0 &&
+        _controller.selection.extentOffset >= 0) {
+      final start = _controller.selection.baseOffset;
+      final end = _controller.selection.extentOffset;
+      final newText = _controller.text.replaceRange(start, end, text);
+      _controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: start + text.length),
+      );
+    } else {
+      _controller.text += text;
+      _controller.selection =
+          TextSelection.collapsed(offset: _controller.text.length);
+    }
+    _focusNode.requestFocus();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isNotEmpty) {
+      Navigator.pop(context, value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = widget.isPermanent ? Colors.red : AppTheme.blue;
+    final bgColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
+    final textColor = isDark ? AppTheme.white : AppTheme.lightText;
+    final subtextColor =
+        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
+            blurRadius: 30,
+            offset: const Offset(0, -10),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag Handle
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 4),
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.lightGray : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.isPermanent
+                        ? 'Block Website Forever'
+                        : 'Add Website',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: textColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Enter domain or URL to restrict',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: subtextColor,
+                        ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _focusNode,
+                          keyboardType: TextInputType.url,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            hintText: 'e.g., youtube.com',
+                            prefixIcon: const Icon(Icons.language),
+                            filled: true,
+                            fillColor: isDark
+                                ? AppTheme.black.withOpacity(0.30)
+                                : AppTheme.lightBackground,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      InkWell(
+                        onTap: _submit,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child:
+                              Icon(Icons.check, color: accentColor, size: 24),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildPill('.com', accentColor, isDark),
+                        const SizedBox(width: 8),
+                        _buildPill('.net', accentColor, isDark),
+                        const SizedBox(width: 8),
+                        _buildPill('.io', accentColor, isDark),
+                        const SizedBox(width: 8),
+                        _buildPill('.co', accentColor, isDark),
+                        const SizedBox(width: 8),
+                        _buildPill('.org', accentColor, isDark),
+                        const SizedBox(width: 8),
+                        _buildPill('.in', accentColor, isDark),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPill(String text, Color accentColor, bool isDark) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _insertText(text),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color:
+                isDark ? AppTheme.black.withOpacity(0.2) : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark
+                  ? AppTheme.lightGray.withOpacity(0.2)
+                  : Colors.grey.shade300,
+            ),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? AppTheme.white : AppTheme.lightText,
+            ),
           ),
         ),
       ),

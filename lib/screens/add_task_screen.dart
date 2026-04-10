@@ -431,7 +431,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             backgroundColor: backgroundColor,
             elevation: 0,
             pinned: true,
-            expandedHeight: 140,
+            expandedHeight: 120,
             automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
               background: SafeArea(
@@ -504,9 +504,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     // Task Details Section
                     _buildSectionCard(
                       context,
-                      icon: Icons.task_alt,
                       iconColor: AppTheme.blue,
-                      title: 'Task Details',
                       cardColor: cardColor,
                       borderColor: borderColor,
                       textColor: textColor,
@@ -804,9 +802,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
   Widget _buildSectionCard(
     BuildContext context, {
-    required IconData icon,
+    IconData? icon,
     required Color iconColor,
-    required String title,
+    String? title,
     String? subtitle,
     Widget? headerAction,
     required Widget child,
@@ -815,7 +813,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     required Color textColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(20, title == null ? 16 : 20, 20, 20),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
@@ -824,44 +822,47 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
+          if (icon != null && title != null) ...[
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon,
+                      color: iconColor, size: title == 'Schedule' ? 18 : 22),
                 ),
-                child: Icon(icon, color: iconColor, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (subtitle != null)
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        subtitle,
+                        title,
                         style: TextStyle(
-                          color: textColor.withOpacity(0.6),
-                          fontSize: 12,
+                          color: textColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                  ],
+                      if (subtitle != null)
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: textColor.withOpacity(0.6),
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              if (headerAction != null) headerAction,
-            ],
-          ),
-          const SizedBox(height: 20),
+                if (headerAction != null) headerAction,
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
           child,
         ],
       ),

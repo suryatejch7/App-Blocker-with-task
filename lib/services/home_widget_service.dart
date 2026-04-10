@@ -280,12 +280,34 @@ Future<void> backgroundCallback(Uri? uri) async {
       nowMs,
     );
 
-    // IMPORTANT:
-    // Do NOT mutate widget task state optimistically here.
-    // The widget's source of truth is TaskProvider -> offline cache.
-    // Optimistic local flips here can race with foreground sync and cause
-    // previously toggled tasks to appear reverted/flipped.
-    // We only queue events; the poller applies them and then syncs widget data.
+    // Optimistically update the widget UI immediately so it feels instant
+    try {
+      await HomeWidget.setAppGroupId(HomeWidgetService._appGroupId);
+      final tasksJsonString =
+          await HomeWidget.getWidgetData<String>(HomeWidgetService._keyTasks);
+      if (tasksJsonString != null) {
+        final List<dynamic> decoded = jsonDecode(tasksJsonString);
+        bool changed = false;
+        for (var task in decoded) {
+          if (task['id'] == taskId) {
+            task['completed'] = !(task['completed'] as bool);
+            changed = true;
+            break;
+          }
+        }
+        if (changed) {
+          await HomeWidget.saveWidgetData<String>(
+              HomeWidgetService._keyTasks, jsonEncode(decoded));
+          await HomeWidget.updateWidget(
+            androidName: HomeWidgetService._androidWidgetName,
+            qualifiedAndroidName:
+                'com.android.krama.${HomeWidgetService._androidWidgetName}',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Optimistic widget UI update failed: $e');
+    }
 
     debugPrint('✅ Background widget toggle queued for task: $taskId');
   } catch (e, stackTrace) {

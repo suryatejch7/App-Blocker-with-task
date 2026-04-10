@@ -23,8 +23,8 @@ android {
         applicationId = "com.android.krama"
         minSdk = 26  // Required for NotificationChannel and modern APIs
         targetSdk = 36  // Android 16 (API 36)
-        versionCode = 2
-        versionName = "2.0.0"
+        versionCode = 3
+        versionName = "2.0.1"
     }
 
     buildTypes {

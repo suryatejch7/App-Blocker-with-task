@@ -1,7 +1,7 @@
 name: habit_tracker_flutter
 description: Habit Tracker Flutter application (converted from a non-Flutter frontend).
 publish_to: "none"
-version: 2.0.0+2
+version: 2.1.1+4
 
 environment:
   sdk: ">=2.18.0 <4.0.0"

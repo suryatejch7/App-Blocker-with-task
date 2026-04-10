@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/task.dart';
 import '../services/restriction_service.dart';
 import '../services/home_widget_service.dart';
@@ -270,15 +271,66 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
+  Timer? _widgetSyncTimer;
+
   TaskProvider() {
-    _load();
+    _load().then((_) {
+      _pollWidgetToggles();
+      _widgetSyncTimer = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => _pollWidgetToggles(),
+      );
+    });
     _scheduleMidnightReset();
   }
 
   @override
   void dispose() {
     _midnightTimer?.cancel();
+    _widgetSyncTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _pollWidgetToggles() async {
+    if (!_tasksLoaded) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+
+      final pendingEvents =
+          prefs.getStringList(HomeWidgetService.pendingWidgetTogglesKey);
+      if (pendingEvents != null && pendingEvents.isNotEmpty) {
+        await prefs
+            .setStringList(HomeWidgetService.pendingWidgetTogglesKey, []);
+
+        bool requiresSync = false;
+        for (final eventStr in pendingEvents) {
+          try {
+            final event = jsonDecode(eventStr);
+            final taskId = event['taskId'] as String;
+            final i = _tasks.indexWhere((x) => x.id == taskId);
+
+            if (i != -1) {
+              _tasks[i].completed = !_tasks[i].completed;
+              if (_tasks[i].completed) {
+                _tasks[i].completedAt = DateTime.now();
+              } else {
+                _tasks[i].completedAt = null;
+              }
+              await _offlineCacheService.upsertTask(_tasks[i].toJson());
+              requiresSync = true;
+            }
+          } catch (_) {}
+        }
+
+        if (requiresSync) {
+          notifyListeners();
+          await _resync();
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ TaskProvider: Error polling widget toggles: $e');
+    }
   }
 
   Future<void> _load() async {

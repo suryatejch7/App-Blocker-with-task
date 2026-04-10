@@ -5,7 +5,6 @@ import '../providers/theme_provider.dart';
 import '../services/restriction_service.dart';
 import '../services/backup_service.dart';
 import '../theme/app_theme.dart';
-import '../utils/responsive.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -65,7 +64,6 @@ class _SettingsScreenState extends State<SettingsScreen>
   Future<void> _requestPermissions() async {
     try {
       await _restrictionService.requestPermissions();
-      // Wait a bit for user to grant permissions
       await Future.delayed(const Duration(seconds: 2));
       await _checkPermissions();
     } catch (e) {
@@ -80,7 +78,6 @@ class _SettingsScreenState extends State<SettingsScreen>
   Future<void> _requestOverlayPermission() async {
     try {
       await _restrictionService.requestOverlayPermission();
-      // Wait a bit for user to grant permissions
       await Future.delayed(const Duration(seconds: 2));
       await _checkPermissions();
     } catch (e) {
@@ -152,13 +149,34 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
+  Widget _buildSectionHeader(String title, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
     final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
-    final scale = context.responsiveScale;
-    final compact = context.isCompactWidth;
+
+    final cardBorderShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: BorderSide(
+        color: isDark
+            ? AppTheme.lightGray.withValues(alpha: 0.2)
+            : AppTheme.lightBorder,
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -171,129 +189,47 @@ class _SettingsScreenState extends State<SettingsScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: EdgeInsets.all(scale * 16),
+              padding: const EdgeInsets.all(16),
               children: [
                 // Appearance Section
-                Text(
-                  'APPEARANCE',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: accentColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                SizedBox(height: scale * 16),
+                _buildSectionHeader('APPEARANCE', accentColor),
                 Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(scale * 16),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compactCard =
-                            constraints.maxWidth < 360 || compact;
-                        final appearanceInfo = Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(scale * 12),
-                              decoration: BoxDecoration(
-                                color: AppTheme.blue.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(scale * 8),
-                              ),
-                              child: Icon(
-                                isDark ? Icons.dark_mode : Icons.light_mode,
-                                color: AppTheme.blue,
-                                size: scale * 28,
-                              ),
-                            ),
-                            SizedBox(width: scale * 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Dark Mode',
-                                    style:
-                                        Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  SizedBox(height: scale * 4),
-                                  Text(
-                                    isDark
-                                        ? 'Currently using dark theme'
-                                        : 'Currently using light theme',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.color
-                                              ?.withOpacity(0.6),
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-
-                        if (compactCard) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              appearanceInfo,
-                              SizedBox(height: scale * 12),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Switch(
-                                  value: isDark,
-                                  onChanged: (value) =>
-                                      themeProvider.toggleTheme(),
-                                  activeThumbColor: AppTheme.blue,
-                                  activeTrackColor:
-                                      AppTheme.blue.withOpacity(0.5),
-                                  inactiveThumbColor: isDark
-                                      ? AppTheme.white
-                                      : AppTheme.lightTextSecondary,
-                                  inactiveTrackColor: isDark
-                                      ? AppTheme.lightGray
-                                      : AppTheme.lightBorder,
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        return Row(
-                          children: [
-                            Expanded(child: appearanceInfo),
-                            Switch(
-                              value: isDark,
-                              onChanged: (value) => themeProvider.toggleTheme(),
-                              activeThumbColor: AppTheme.blue,
-                              activeTrackColor: AppTheme.blue.withOpacity(0.5),
-                              inactiveThumbColor: isDark
-                                  ? AppTheme.white
-                                  : AppTheme.lightTextSecondary,
-                              inactiveTrackColor: isDark
-                                  ? AppTheme.lightGray
-                                  : AppTheme.lightBorder,
-                            ),
-                          ],
-                        );
-                      },
+                  elevation: 0,
+                  margin: EdgeInsets.zero,
+                  shape: cardBorderShape,
+                  child: SwitchListTile(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    secondary: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isDark ? Icons.dark_mode : Icons.light_mode,
+                        color: AppTheme.blue,
+                        size: 24,
+                      ),
                     ),
+                    title: const Text('Dark Mode',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      isDark
+                          ? 'Currently using dark theme'
+                          : 'Currently using light theme',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    value: isDark,
+                    onChanged: (value) => themeProvider.toggleTheme(),
+                    activeTrackColor: AppTheme.blue.withValues(alpha: 0.5),
+                    activeThumbColor: AppTheme.blue,
                   ),
                 ),
-                SizedBox(height: scale * 32),
+                const SizedBox(height: 24),
 
                 // Permissions Section
-                Text(
-                  'PERMISSIONS',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: accentColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                SizedBox(height: scale * 16),
+                _buildSectionHeader('PERMISSIONS', accentColor),
                 _PermissionCard(
                   title: 'Accessibility Service',
                   description:
@@ -301,6 +237,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                   icon: Icons.accessibility_new,
                   isGranted: _accessibilityGranted,
                   onRequest: _requestPermissions,
+                  cardBorderShape: cardBorderShape,
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 12),
                 _PermissionCard(
@@ -310,108 +248,113 @@ class _SettingsScreenState extends State<SettingsScreen>
                   icon: Icons.picture_in_picture_alt,
                   isGranted: _overlayGranted,
                   onRequest: _requestOverlayPermission,
+                  cardBorderShape: cardBorderShape,
+                  isDark: isDark,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
                 // Data Backup Section
-                Text(
-                  'DATA BACKUP',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: accentColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                SizedBox(height: scale * 16),
+                _buildSectionHeader('DATA BACKUP', accentColor),
                 Card(
+                  elevation: 0,
+                  margin: EdgeInsets.zero,
+                  shape: cardBorderShape,
+                  child: Column(
+                    children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.backup,
+                              color: AppTheme.blue, size: 24),
+                        ),
+                        title: const Text('Backup Data',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: const Text(
+                            'Save your tasks to device storage',
+                            style: TextStyle(fontSize: 13)),
+                        trailing: ElevatedButton(
+                          onPressed: _backupData,
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            backgroundColor:
+                                AppTheme.blue.withValues(alpha: 0.1),
+                            foregroundColor: AppTheme.blue,
+                          ),
+                          child: const Text('Backup'),
+                        ),
+                      ),
+                      Divider(
+                          height: 1,
+                          color: isDark
+                              ? AppTheme.lightGray.withValues(alpha: 0.2)
+                              : AppTheme.lightBorder),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.restore,
+                              color: AppTheme.orange, size: 24),
+                        ),
+                        title: const Text('Restore Data',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: const Text('Restore tasks from a backup file',
+                            style: TextStyle(fontSize: 13)),
+                        trailing: ElevatedButton(
+                          onPressed: _restoreData,
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            backgroundColor:
+                                AppTheme.orange.withValues(alpha: 0.1),
+                            foregroundColor: AppTheme.orange,
+                          ),
+                          child: const Text('Restore'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // About Section
+                _buildSectionHeader('ABOUT', AppTheme.blue),
+                Card(
+                  elevation: 0,
+                  margin: EdgeInsets.zero,
+                  shape: cardBorderShape,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Backup Your Data',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Create a backup of all your tasks and settings to save them to your device storage.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.color
-                                        ?.withOpacity(0.6),
-                                  ),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: () => _backupData(),
-                          icon: const Icon(Icons.backup),
-                          label: const Text('Create Backup'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: scale * 12),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Restore from Backup',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Restore all your tasks and settings from a previously saved backup file.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.color
-                                        ?.withOpacity(0.6),
-                                  ),
-                        ),
-                        SizedBox(height: scale * 12),
-                        ElevatedButton.icon(
-                          onPressed: () => _restoreData(),
-                          icon: const Icon(Icons.restore),
-                          label: const Text('Restore Backup'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: scale * 32),
-                Text(
-                  'ABOUT',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.blue,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                SizedBox(height: scale * 16),
-                Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(scale * 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final compactAbout =
-                                constraints.maxWidth < 360 || compact;
-                            final icon = Icon(
-                              Icons.block,
-                              color: AppTheme.yellow,
-                              size: scale * 32,
-                            );
-                            final details = Column(
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.yellow.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.block,
+                                color: AppTheme.yellow,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -423,9 +366,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                                         fontWeight: FontWeight.bold,
                                       ),
                                 ),
-                                SizedBox(height: scale * 4),
+                                const SizedBox(height: 4),
                                 Text(
-                                  'Version 2.0.0',
+                                  'Version 2.0.1',
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodyMedium
@@ -434,33 +377,14 @@ class _SettingsScreenState extends State<SettingsScreen>
                                             .textTheme
                                             .bodyMedium
                                             ?.color
-                                            ?.withOpacity(0.6),
+                                            ?.withValues(alpha: 0.6),
                                       ),
                                 ),
                               ],
-                            );
-
-                            if (compactAbout) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  icon,
-                                  SizedBox(height: scale * 12),
-                                  details,
-                                ],
-                              );
-                            }
-
-                            return Row(
-                              children: [
-                                icon,
-                                SizedBox(width: scale * 16),
-                                Expanded(child: details),
-                              ],
-                            );
-                          },
+                            ),
+                          ],
                         ),
-                        SizedBox(height: scale * 16),
+                        const SizedBox(height: 16),
                         Text(
                           'Block distracting apps and websites during your focus time. Create time-bound tasks and let the app enforce your restrictions automatically.',
                           style:
@@ -469,7 +393,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                                         .textTheme
                                         .bodyMedium
                                         ?.color
-                                        ?.withOpacity(0.8),
+                                        ?.withValues(alpha: 0.8),
+                                    height: 1.5,
                                   ),
                         ),
                       ],
@@ -489,6 +414,8 @@ class _PermissionCard extends StatelessWidget {
   final IconData icon;
   final bool isGranted;
   final VoidCallback onRequest;
+  final RoundedRectangleBorder cardBorderShape;
+  final bool isDark;
 
   const _PermissionCard({
     required this.title,
@@ -496,109 +423,116 @@ class _PermissionCard extends StatelessWidget {
     required this.icon,
     required this.isGranted,
     required this.onRequest,
+    required this.cardBorderShape,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
-    final scale = context.responsiveScale;
-    final compact = context.isCompactWidth;
+    final subtextColor = isDark
+        ? AppTheme.white.withValues(alpha: 0.6)
+        : AppTheme.lightTextSecondary;
 
     return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: cardBorderShape.borderRadius,
+        side: BorderSide(
+          color: isGranted
+              ? AppTheme.blue.withValues(alpha: 0.3)
+              : cardBorderShape.side.color,
+          width: isGranted ? 1.5 : 1.0,
+        ),
+      ),
       child: Padding(
-        padding: EdgeInsets.all(scale * 16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compactCard = compact || constraints.maxWidth < 360;
-
-            final leading = Container(
-              padding: EdgeInsets.all(scale * 12),
-              decoration: BoxDecoration(
-                color: isGranted
-                    ? AppTheme.blue.withOpacity(0.2)
-                    : (isDark ? AppTheme.mediumGray : AppTheme.lightBorder),
-                borderRadius: BorderRadius.circular(scale * 8),
-              ),
-              child: Icon(
-                icon,
-                color: isGranted
-                    ? AppTheme.blue
-                    : (isDark ? AppTheme.white : AppTheme.lightTextSecondary),
-                size: scale * 28,
-              ),
-            );
-
-            final titleRow = Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: scale * 8,
-                    vertical: scale * 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isGranted ? AppTheme.blue : Colors.red,
-                    borderRadius: BorderRadius.circular(scale * 4),
-                  ),
-                  child: Text(
-                    isGranted ? 'GRANTED' : 'REQUIRED',
-                    style: TextStyle(
-                      color: AppTheme.white,
-                      fontSize: scale * 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-
-            final details = Column(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                titleRow,
-                SizedBox(height: scale * 4),
-                Text(
-                  description,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: subtextColor,
-                      ),
-                ),
-                if (!isGranted) ...[
-                  SizedBox(height: scale * 12),
-                  ElevatedButton(
-                    onPressed: onRequest,
-                    child: const Text('Grant Permission'),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.only(top: 2),
+                  decoration: BoxDecoration(
+                    color: isGranted
+                        ? AppTheme.blue.withValues(alpha: 0.1)
+                        : (isDark ? AppTheme.mediumGray : AppTheme.lightBorder),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ],
+                  child: Icon(
+                    icon,
+                    size: 24,
+                    color: isGranted
+                        ? AppTheme.blue
+                        : (isDark
+                            ? AppTheme.white
+                            : AppTheme.lightTextSecondary),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 15),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isGranted ? AppTheme.blue : Colors.red,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isGranted ? 'GRANTED' : 'REQUIRED',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        description,
+                        style: TextStyle(
+                            color: subtextColor, fontSize: 13, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
               ],
-            );
-
-            if (compactCard) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  leading,
-                  SizedBox(height: scale * 12),
-                  details,
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                leading,
-                SizedBox(width: scale * 16),
-                Expanded(child: details),
-              ],
-            );
-          },
+            ),
+            if (!isGranted) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onRequest,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: AppTheme.blue.withValues(alpha: 0.1),
+                    foregroundColor: AppTheme.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Grant Permission',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
