@@ -18,6 +18,22 @@ class BackupService {
 
   final _cacheService = OfflineCacheService();
 
+  static List<Map<String, dynamic>> _decodeMapList(dynamic value) {
+    if (value is! List) return const <Map<String, dynamic>>[];
+    final out = <Map<String, dynamic>>[];
+    for (final item in value) {
+      if (item is Map) {
+        out.add(Map<String, dynamic>.from(item));
+      }
+    }
+    return out;
+  }
+
+  static List<String> _decodeStringList(dynamic value) {
+    if (value is! List) return const <String>[];
+    return value.map((e) => e.toString()).toList();
+  }
+
   /// Create a manual backup JSON file in app documents directory
   Future<bool> backupToFile() async {
     try {
@@ -89,42 +105,26 @@ class BackupService {
 
       // Read and parse JSON
       final jsonString = await file.readAsString();
-      final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! Map) {
+        debugPrint(
+            '❌ BackupService: Invalid backup format (expected JSON object, got ${decoded.runtimeType})');
+        return false;
+      }
+
+      final backupData = Map<String, dynamic>.from(decoded);
 
       debugPrint(
           '📦 BackupService: Loaded backup with data: ${backupData.keys}');
 
       // Restore data from JSON
-      final tasks = (backupData['tasks'] as List<dynamic>?)
-              ?.map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ??
-          [];
-
-      final archivedTasks = (backupData['archived_tasks'] as List<dynamic>?)
-              ?.map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ??
-          [];
-
-      final defaultApps = (backupData['default_apps'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [];
-
-      final defaultWebsites = (backupData['default_websites'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [];
-
-      final permanentApps = (backupData['permanent_apps'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [];
-
-      final permanentWebsites =
-          (backupData['permanent_websites'] as List<dynamic>?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              [];
+        final tasks = _decodeMapList(backupData['tasks']);
+        final archivedTasks = _decodeMapList(backupData['archived_tasks']);
+        final defaultApps = _decodeStringList(backupData['default_apps']);
+        final defaultWebsites = _decodeStringList(backupData['default_websites']);
+        final permanentApps = _decodeStringList(backupData['permanent_apps']);
+        final permanentWebsites =
+          _decodeStringList(backupData['permanent_websites']);
 
       // Clear existing data
       await _cacheService.clearAll();

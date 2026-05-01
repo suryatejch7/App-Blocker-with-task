@@ -17,10 +17,17 @@ class AppEntry {
         'notes': notes,
       };
 
-  static AppEntry fromJson(Map<String, dynamic> j) => AppEntry(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        packageName: j['packageName'] as String,
-        notes: j['notes'] as String? ?? '',
-      );
+  static AppEntry fromJson(Map<String, dynamic> j) {
+    final packageName = (j['packageName']?.toString() ?? '').trim();
+    final name = (j['name']?.toString() ?? '').trim();
+    final rawId = (j['id']?.toString() ?? '').trim();
+    final derivedId = packageName.isNotEmpty ? packageName : name;
+
+    return AppEntry(
+      id: rawId.isNotEmpty ? rawId : derivedId,
+      name: name,
+      packageName: packageName,
+      notes: (j['notes']?.toString() ?? ''),
+    );
+  }
 }

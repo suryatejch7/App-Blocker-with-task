@@ -17,10 +17,17 @@ class WebsiteEntry {
         'notes': notes,
       };
 
-  static WebsiteEntry fromJson(Map<String, dynamic> j) => WebsiteEntry(
-        id: j['id'] as String,
-        title: j['title'] as String,
-        url: j['url'] as String,
-        notes: j['notes'] as String? ?? '',
-      );
+  static WebsiteEntry fromJson(Map<String, dynamic> j) {
+    final url = (j['url']?.toString() ?? '').trim();
+    final title = (j['title']?.toString() ?? '').trim();
+    final rawId = (j['id']?.toString() ?? '').trim();
+    final derivedId = url.isNotEmpty ? url : title;
+
+    return WebsiteEntry(
+      id: rawId.isNotEmpty ? rawId : derivedId,
+      title: title,
+      url: url,
+      notes: (j['notes']?.toString() ?? ''),
+    );
+  }
 }

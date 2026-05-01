@@ -28,7 +28,7 @@ class TaskProvider extends ChangeNotifier {
 
   // Serialize native sync calls to avoid overlapping stale updates.
   bool _syncRestrictionsRunning = false;
-  bool _syncRestrictionsQueued = false;
+  int _syncRestrictionsQueuedCount = 0;
   String? _lastRestrictionsPayloadSignature;
   bool _tasksLoaded = false;
   bool _hasRestrictionSnapshot = false;
@@ -133,15 +133,16 @@ class TaskProvider extends ChangeNotifier {
     }
 
     // Coalesce concurrent calls; process only latest state in a serialized loop.
-    _syncRestrictionsQueued = true;
+    _syncRestrictionsQueuedCount++;
     if (_syncRestrictionsRunning) {
       return;
     }
 
     _syncRestrictionsRunning = true;
     try {
-      while (_syncRestrictionsQueued) {
-        _syncRestrictionsQueued = false;
+      while (_syncRestrictionsQueuedCount > 0) {
+        // Collapse multiple queued calls into a single sync with the latest snapshot.
+        _syncRestrictionsQueuedCount = 0;
 
         await _performSyncRestrictions(
           List<String>.from(_defaultRestrictedApps),
@@ -271,15 +272,9 @@ class TaskProvider extends ChangeNotifier {
     }
   }
 
-  Timer? _widgetSyncTimer;
-
   TaskProvider() {
     _load().then((_) {
       _pollWidgetToggles();
-      _widgetSyncTimer = Timer.periodic(
-        const Duration(seconds: 2),
-        (_) => _pollWidgetToggles(),
-      );
     });
     _scheduleMidnightReset();
   }
@@ -287,9 +282,14 @@ class TaskProvider extends ChangeNotifier {
   @override
   void dispose() {
     _midnightTimer?.cancel();
-    _widgetSyncTimer?.cancel();
     super.dispose();
   }
+
+  /// Consume any queued widget toggle events immediately.
+  ///
+  /// This replaces the old periodic polling approach. Call this on app resume
+  /// (or after a widget interaction deep link) to apply queued toggles.
+  Future<void> consumePendingWidgetTogglesNow() => _pollWidgetToggles();
 
   Future<void> _pollWidgetToggles() async {
     if (!_tasksLoaded) return;
@@ -306,8 +306,22 @@ class TaskProvider extends ChangeNotifier {
         bool requiresSync = false;
         for (final eventStr in pendingEvents) {
           try {
-            final event = jsonDecode(eventStr);
-            final taskId = event['taskId'] as String;
+            final decoded = jsonDecode(eventStr);
+            if (decoded is! Map) {
+              debugPrint(
+                  '⚠️ TaskProvider: Invalid widget event (expected Map, got ${decoded.runtimeType})');
+              continue;
+            }
+
+            final event = Map<String, dynamic>.from(decoded);
+            final taskIdValue = event['taskId'];
+            if (taskIdValue is! String || taskIdValue.trim().isEmpty) {
+              debugPrint(
+                  '⚠️ TaskProvider: Widget event missing/invalid taskId: $event');
+              continue;
+            }
+
+            final taskId = taskIdValue.trim();
             final i = _tasks.indexWhere((x) => x.id == taskId);
 
             if (i != -1) {
@@ -320,7 +334,10 @@ class TaskProvider extends ChangeNotifier {
               await _offlineCacheService.upsertTask(_tasks[i].toJson());
               requiresSync = true;
             }
-          } catch (_) {}
+          } catch (e, stackTrace) {
+            debugPrint('⚠️ TaskProvider: Error processing widget event: $e');
+            debugPrint('📍 Stack trace: $stackTrace');
+          }
         }
 
         if (requiresSync) {
@@ -328,8 +345,9 @@ class TaskProvider extends ChangeNotifier {
           await _resync();
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('⚠️ TaskProvider: Error polling widget toggles: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
     }
   }
 

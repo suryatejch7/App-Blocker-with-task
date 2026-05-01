@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_keys.dart';
 import '../models/task.dart';
 
 /// Service for managing Android home screen widget data synchronization.
@@ -11,18 +12,9 @@ import '../models/task.dart';
 /// - Updating widget when tasks change
 /// - Handling widget tap interactions
 class HomeWidgetService {
-  static const String _appGroupId = 'group.habit_tracker_flutter';
-  static const String _androidWidgetName = 'TaskWidgetProvider';
-
-  // Data keys for widget shared preferences
-  static const String _keyTasks = 'tasks_data';
-  static const String _keyTaskCount = 'task_count';
-  static const String _keyNextTask = 'next_task';
-  static const String _keyLastUpdate = 'last_update';
-  static const String _keyWidgetIsDark = 'widget_is_dark';
-  static const String _themeKey = 'theme_mode';
-  static const String lastWidgetToggleAtKey = 'last_widget_toggle_at_ms';
-  static const String pendingWidgetTogglesKey = 'pending_widget_toggles';
+  // Expose queue keys to other layers (TaskProvider consumes these).
+  static const String lastWidgetToggleAtKey = PrefsKeys.lastWidgetToggleAtMs;
+  static const String pendingWidgetTogglesKey = PrefsKeys.pendingWidgetToggles;
 
   static final HomeWidgetService _instance = HomeWidgetService._internal();
   factory HomeWidgetService() => _instance;
@@ -32,7 +24,7 @@ class HomeWidgetService {
   Future<void> initialize() async {
     try {
       // Set app group ID for data sharing (required for iOS, good practice for Android)
-      await HomeWidget.setAppGroupId(_appGroupId);
+      await HomeWidget.setAppGroupId(WidgetKeys.appGroupId);
 
       // Register callback for widget interactions
       HomeWidget.registerInteractivityCallback(backgroundCallback);
@@ -47,7 +39,7 @@ class HomeWidgetService {
   /// Call this whenever tasks are added, updated, or removed
   Future<bool> updateWidgetWithTasks(List<Task> tasks) async {
     try {
-      await HomeWidget.setAppGroupId(_appGroupId);
+      await HomeWidget.setAppGroupId(WidgetKeys.appGroupId);
       final isDarkMode = await _readIsDarkTheme();
 
       // Filter strictly to today's tasks and sort by deadline
@@ -81,12 +73,12 @@ class HomeWidgetService {
 
       // Save data to shared preferences for widget access
       await HomeWidget.saveWidgetData<String>(
-        _keyTasks,
+        WidgetKeys.tasksData,
         jsonEncode(tasksJson),
       );
 
       await HomeWidget.saveWidgetData<int>(
-        _keyTaskCount,
+        WidgetKeys.taskCount,
         todayTasks.length,
       );
 
@@ -94,7 +86,7 @@ class HomeWidgetService {
       final nextTask = _getNextUpcomingTask(todayTasks);
       if (nextTask != null) {
         await HomeWidget.saveWidgetData<String>(
-          _keyNextTask,
+          WidgetKeys.nextTask,
           jsonEncode({
             'id': nextTask.id,
             'title': nextTask.title,
@@ -104,20 +96,20 @@ class HomeWidgetService {
           }),
         );
       } else {
-        await HomeWidget.saveWidgetData<String>(_keyNextTask, '');
+        await HomeWidget.saveWidgetData<String>(WidgetKeys.nextTask, '');
       }
 
       await HomeWidget.saveWidgetData<String>(
-        _keyLastUpdate,
+        WidgetKeys.lastUpdate,
         DateTime.now().toIso8601String(),
       );
 
-      await HomeWidget.saveWidgetData<bool>(_keyWidgetIsDark, isDarkMode);
+      await HomeWidget.saveWidgetData<bool>(WidgetKeys.widgetIsDark, isDarkMode);
 
       // Trigger widget update
       await HomeWidget.updateWidget(
-        androidName: _androidWidgetName,
-        qualifiedAndroidName: 'com.android.krama.$_androidWidgetName',
+        androidName: WidgetKeys.androidWidgetName,
+        qualifiedAndroidName: 'com.android.krama.${WidgetKeys.androidWidgetName}',
       );
 
       debugPrint(
@@ -133,11 +125,11 @@ class HomeWidgetService {
   /// Update only the widget theme without changing task data.
   Future<bool> updateWidgetTheme(bool isDarkMode) async {
     try {
-      await HomeWidget.setAppGroupId(_appGroupId);
-      await HomeWidget.saveWidgetData<bool>(_keyWidgetIsDark, isDarkMode);
+      await HomeWidget.setAppGroupId(WidgetKeys.appGroupId);
+      await HomeWidget.saveWidgetData<bool>(WidgetKeys.widgetIsDark, isDarkMode);
       await HomeWidget.updateWidget(
-        androidName: _androidWidgetName,
-        qualifiedAndroidName: 'com.android.krama.$_androidWidgetName',
+        androidName: WidgetKeys.androidWidgetName,
+        qualifiedAndroidName: 'com.android.krama.${WidgetKeys.androidWidgetName}',
       );
       debugPrint(
           '✅ HomeWidgetService: Widget theme updated (dark=$isDarkMode)');
@@ -187,7 +179,7 @@ class HomeWidgetService {
   Future<bool> _readIsDarkTheme() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_themeKey) ?? false;
+      return prefs.getBool(PrefsKeys.themeMode) ?? false;
     } catch (e) {
       debugPrint('⚠️ HomeWidgetService: Unable to read theme preference: $e');
       return false;
@@ -197,12 +189,12 @@ class HomeWidgetService {
   /// Clear all widget data
   Future<void> clearWidgetData() async {
     try {
-      await HomeWidget.saveWidgetData<String>(_keyTasks, '[]');
-      await HomeWidget.saveWidgetData<int>(_keyTaskCount, 0);
-      await HomeWidget.saveWidgetData<String>(_keyNextTask, '');
+      await HomeWidget.saveWidgetData<String>(WidgetKeys.tasksData, '[]');
+      await HomeWidget.saveWidgetData<int>(WidgetKeys.taskCount, 0);
+      await HomeWidget.saveWidgetData<String>(WidgetKeys.nextTask, '');
       await HomeWidget.updateWidget(
-        androidName: _androidWidgetName,
-        qualifiedAndroidName: 'com.android.krama.$_androidWidgetName',
+        androidName: WidgetKeys.androidWidgetName,
+        qualifiedAndroidName: 'com.android.krama.${WidgetKeys.androidWidgetName}',
       );
       debugPrint('✅ HomeWidgetService: Widget data cleared');
     } catch (e) {
@@ -282,26 +274,31 @@ Future<void> backgroundCallback(Uri? uri) async {
 
     // Optimistically update the widget UI immediately so it feels instant
     try {
-      await HomeWidget.setAppGroupId(HomeWidgetService._appGroupId);
+      await HomeWidget.setAppGroupId(WidgetKeys.appGroupId);
       final tasksJsonString =
-          await HomeWidget.getWidgetData<String>(HomeWidgetService._keyTasks);
+          await HomeWidget.getWidgetData<String>(WidgetKeys.tasksData);
       if (tasksJsonString != null) {
-        final List<dynamic> decoded = jsonDecode(tasksJsonString);
+        final decoded = jsonDecode(tasksJsonString);
+        if (decoded is! List) {
+          throw const FormatException('Widget tasks payload is not a list');
+        }
         bool changed = false;
-        for (var task in decoded) {
-          if (task['id'] == taskId) {
-            task['completed'] = !(task['completed'] as bool);
+        for (final item in decoded) {
+          if (item is! Map) continue;
+          if (item['id'] == taskId) {
+            final currentCompleted = item['completed'];
+            item['completed'] = currentCompleted is bool ? !currentCompleted : true;
             changed = true;
             break;
           }
         }
         if (changed) {
           await HomeWidget.saveWidgetData<String>(
-              HomeWidgetService._keyTasks, jsonEncode(decoded));
+              WidgetKeys.tasksData, jsonEncode(decoded));
           await HomeWidget.updateWidget(
-            androidName: HomeWidgetService._androidWidgetName,
+            androidName: WidgetKeys.androidWidgetName,
             qualifiedAndroidName:
-                'com.android.krama.${HomeWidgetService._androidWidgetName}',
+                'com.android.krama.${WidgetKeys.androidWidgetName}',
           );
         }
       }

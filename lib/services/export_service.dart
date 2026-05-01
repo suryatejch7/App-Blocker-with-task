@@ -2,31 +2,35 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'offline_cache_service.dart';
 
 /// ExportService handles CSV and JSON export for data portability
 class ExportService {
   /// Export all tasks as CSV
   static Future<File?> exportTasksAsCSV() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final tasksJson = prefs.getString('ls_tasks') ?? '[]';
-      final tasks = jsonDecode(tasksJson) as List;
+      final offlineCacheService = OfflineCacheService();
+      if (!offlineCacheService.isInitialized) {
+        await offlineCacheService.initialize();
+      }
+
+      final tasks = offlineCacheService.getCachedTasks();
 
       final csvBuffer = StringBuffer();
       csvBuffer.writeln(
           'ID,Title,Description,StartTime,EndTime,Completed,RepeatSettings,RestrictionMode');
 
       for (final task in tasks) {
-        final id = (task as Map<String, dynamic>)['id'] ?? '';
-        final title = task['title'] ?? '';
-        final desc =
-            (task['description'] ?? '').toString().replaceAll(',', ';');
-        final start = task['start_time'] ?? '';
-        final end = task['end_time'] ?? '';
-        final completed = task['completed'] ?? false;
-        final repeat = task['repeat_settings'] ?? 'none';
-        final mode = task['restriction_mode'] ?? 'default';
+        final id = (task['id']?.toString() ?? '').trim();
+        final title = (task['title']?.toString() ?? '').trim();
+        final desc = (task['description']?.toString() ?? '')
+            .replaceAll('"', '""')
+            .replaceAll(',', ';');
+        final start = task['start_time']?.toString() ?? '';
+        final end = task['end_time']?.toString() ?? '';
+        final completed = (task['completed'] is bool) ? task['completed'] : false;
+        final repeat = task['repeat_settings']?.toString() ?? 'none';
+        final mode = task['restriction_mode']?.toString() ?? 'default';
 
         csvBuffer.writeln(
             '$id,"$title","$desc","$start","$end",$completed,$repeat,$mode');
@@ -50,15 +54,16 @@ class ExportService {
   /// Export restrictions as JSON
   static Future<File?> exportRestrictionsAsJSON() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final export = {
-        'default_apps': jsonDecode(prefs.getString('ls_default_apps') ?? '[]'),
-        'default_websites':
-            jsonDecode(prefs.getString('ls_default_websites') ?? '[]'),
-        'permanent_apps':
-            jsonDecode(prefs.getString('ls_permanent_apps') ?? '[]'),
-        'permanent_websites':
-            jsonDecode(prefs.getString('ls_permanent_websites') ?? '[]'),
+      final offlineCacheService = OfflineCacheService();
+      if (!offlineCacheService.isInitialized) {
+        await offlineCacheService.initialize();
+      }
+
+      final export = <String, dynamic>{
+        'default_apps': offlineCacheService.getCachedDefaultApps(),
+        'default_websites': offlineCacheService.getCachedDefaultWebsites(),
+        'permanent_apps': offlineCacheService.getCachedPermanentApps(),
+        'permanent_websites': offlineCacheService.getCachedPermanentWebsites(),
       };
 
       final dir = await getApplicationDocumentsDirectory();

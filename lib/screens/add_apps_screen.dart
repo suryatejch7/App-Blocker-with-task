@@ -19,6 +19,14 @@ class _AddAppsScreenState extends State<AddAppsScreen> {
   String? _editId;
 
   @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _pkgCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
@@ -36,25 +44,27 @@ class _AddAppsScreenState extends State<AddAppsScreen> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     final pkg = _pkgCtrl.text.trim();
     if (name.isEmpty || pkg.isEmpty) return;
     final provider = Provider.of<AppsProvider>(context, listen: false);
     if (_isEdit && _editId != null) {
-      provider.update(AppEntry(
+      await provider.update(AppEntry(
           id: _editId!,
           name: name,
           packageName: pkg,
           notes: _notesCtrl.text.trim()));
     } else {
-      provider.add(AppEntry(
+      await provider.add(AppEntry(
           id: Uuid().v4(),
           name: name,
           packageName: pkg,
           notes: _notesCtrl.text.trim()));
     }
-    Navigator.of(context).pop();
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -85,7 +95,7 @@ class _AddAppsScreenState extends State<AddAppsScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _save,
+                onPressed: () async => _save(),
                 child: const Text('Save'),
               ),
             ),

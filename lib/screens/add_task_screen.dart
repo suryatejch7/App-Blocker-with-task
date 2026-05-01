@@ -62,6 +62,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
   String _fromStorageRepeat(String value) {
     if (value.startsWith('custom:')) {
       final rawDays = value.substring('custom:'.length);
@@ -132,7 +139,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 children: [
                   Text(
                     'Choose the weekdays for this task:',
-                    style: TextStyle(color: textColor.withOpacity(0.8)),
+                    style: TextStyle(color: textColor.withValues(alpha: 0.8)),
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -188,13 +195,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       default:
         return 'Once';
     }
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
   }
 
   Future<void> _selectDate() async {
@@ -278,43 +278,48 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Website'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'Website URL or domain',
-              hintText: 'e.g., youtube.com or https://youtube.com',
+    String? result;
+    try {
+      result = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Add Website'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Website URL or domain',
+                hintText: 'e.g., youtube.com or https://youtube.com',
+              ),
+              keyboardType: TextInputType.url,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a website';
+                }
+                return null;
+              },
             ),
-            keyboardType: TextInputType.url,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter a website';
-              }
-              return null;
-            },
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(context, controller.text.trim());
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(context, controller.text.trim());
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
+      );
+    } finally {
+      controller.dispose();
+    }
 
     if (result != null && result.isNotEmpty) {
       final domain = _normalizeDomain(result);
@@ -418,7 +423,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.7) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.7) : AppTheme.lightTextSecondary;
     final cardColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
     final borderColor = isDark ? AppTheme.lightGray : AppTheme.lightBorder;
 
@@ -574,10 +579,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.purple.withOpacity(0.1),
+                            color: Colors.purple.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color: Colors.purple.withOpacity(0.25)),
+                                color: Colors.purple.withValues(alpha: 0.25)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -652,7 +657,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                                             horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
                                           color:
-                                              Colors.purple.withOpacity(0.12),
+                                            Colors.purple.withValues(alpha: 0.12),
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
@@ -828,7 +833,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.15),
+                    color: iconColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon,
@@ -851,7 +856,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                         Text(
                           subtitle,
                           style: TextStyle(
-                            color: textColor.withOpacity(0.6),
+                            color: textColor.withValues(alpha: 0.6),
                             fontSize: 12,
                           ),
                         ),
@@ -884,9 +889,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.08),
+          color: iconColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: iconColor.withOpacity(0.2)),
+          border: Border.all(color: iconColor.withValues(alpha: 0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -949,7 +954,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final fillColor = isDark
-        ? AppTheme.mediumGray.withOpacity(0.5)
+      ? AppTheme.mediumGray.withValues(alpha: 0.5)
         : AppTheme.lightBackground;
 
     return Column(
@@ -982,7 +987,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
           style: TextStyle(color: textColor, fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: subtextColor.withOpacity(0.6)),
+            hintStyle: TextStyle(color: subtextColor.withValues(alpha: 0.6)),
             filled: true,
             fillColor: fillColor,
             contentPadding:
@@ -1083,7 +1088,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final fillColor = isDark
-        ? AppTheme.mediumGray.withOpacity(0.3)
+      ? AppTheme.mediumGray.withValues(alpha: 0.3)
         : AppTheme.lightBackground;
 
     return Container(
@@ -1114,7 +1119,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppTheme.blue.withOpacity(0.15),
+                    color: AppTheme.blue.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Row(
@@ -1163,10 +1168,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.1),
+                    color: Colors.redAccent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                     border:
-                        Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                        Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1226,7 +1231,7 @@ class _TaskAppSelectorDialogState extends State<_TaskAppSelectorDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
     final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
 
     final filteredApps = widget.installedApps.where((app) {

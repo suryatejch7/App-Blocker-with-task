@@ -20,10 +20,12 @@ class Task {
     this.completed = false,
     this.repeatSettings = 'none',
     this.restrictionMode = 'default',
-    this.customRestrictedApps = const [],
-    this.customRestrictedWebsites = const [],
+    List<String>? customRestrictedApps,
+    List<String>? customRestrictedWebsites,
     this.completedAt,
-  });
+  })  : customRestrictedApps = List<String>.from(customRestrictedApps ?? const []),
+        customRestrictedWebsites =
+            List<String>.from(customRestrictedWebsites ?? const []);
 
   bool get isOverdue {
     if (completed) return false;
@@ -60,34 +62,64 @@ class Task {
   }
 
   static Task fromJson(Map<String, dynamic> j) {
-    final startTimeStr = j['start_time'] ?? j['startTime'];
-    final endTimeStr = j['end_time'] ?? j['endTime'];
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is DateTime) return value;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (_) {
+          return null;
+        }
+      }
+      return null;
+    }
 
-    final startTimeUtc = DateTime.parse(startTimeStr);
-    final endTimeUtc = DateTime.parse(endTimeStr);
-    final startTimeLocal = startTimeUtc.toLocal();
-    final endTimeLocal = endTimeUtc.toLocal();
+    List<String> parseStringList(dynamic value) {
+      if (value is! List) return const <String>[];
+      return value.map((e) => e.toString()).toList();
+    }
+
+    final id = (j['id']?.toString() ?? '').trim();
+    final title = (j['title']?.toString() ?? '').trim();
+    final description = (j['description']?.toString() ?? '').trim();
+
+    final startTimeRaw = j['start_time'] ?? j['startTime'];
+    final endTimeRaw = j['end_time'] ?? j['endTime'];
+
+    final startTimeParsed = parseDateTime(startTimeRaw);
+    final endTimeParsed = parseDateTime(endTimeRaw);
+
+    final now = DateTime.now();
+    final startTimeUtc = (startTimeParsed ?? now.toUtc()).toUtc();
+    final endTimeUtc = (endTimeParsed ?? startTimeUtc.add(const Duration(hours: 1))).toUtc();
+
+    var startTimeLocal = startTimeUtc.toLocal();
+    var endTimeLocal = endTimeUtc.toLocal();
+    if (!endTimeLocal.isAfter(startTimeLocal)) {
+      endTimeLocal = startTimeLocal.add(const Duration(hours: 1));
+    }
+
+    final completedAtRaw = j['completed_at'] ?? j['completedAt'];
+    final completedAtParsed = parseDateTime(completedAtRaw)?.toLocal();
 
     return Task(
-      id: j['id'] as String,
-      title: j['title'] as String,
-      description: j['description'] as String?,
+      id: id.isNotEmpty ? id : now.microsecondsSinceEpoch.toString(),
+      title: title.isNotEmpty ? title : 'Untitled',
+      description: description.isNotEmpty ? description : null,
       // Parse as local time (IST) - convert UTC from database to local
       startTime: startTimeLocal,
       endTime: endTimeLocal,
-      completed: j['completed'] as bool? ?? false,
-      repeatSettings: j['repeat_settings'] ?? j['repeatSettings'] ?? 'none',
+      completed: (j['completed'] is bool) ? (j['completed'] as bool) : false,
+      repeatSettings: (j['repeat_settings'] ?? j['repeatSettings'] ?? 'none')
+          .toString(),
       restrictionMode:
-          j['restriction_mode'] ?? j['restrictionMode'] ?? 'default',
-      customRestrictedApps: List<String>.from(
-          j['custom_restricted_apps'] ?? j['customRestrictedApps'] ?? []),
-      customRestrictedWebsites: List<String>.from(
-          j['custom_restricted_websites'] ??
-              j['customRestrictedWebsites'] ??
-              []),
-      completedAt: (j['completed_at'] ?? j['completedAt']) != null
-          ? DateTime.parse(j['completed_at'] ?? j['completedAt']).toLocal()
-          : null,
+          (j['restriction_mode'] ?? j['restrictionMode'] ?? 'default').toString(),
+      customRestrictedApps:
+          parseStringList(j['custom_restricted_apps'] ?? j['customRestrictedApps']),
+      customRestrictedWebsites: parseStringList(
+          j['custom_restricted_websites'] ?? j['customRestrictedWebsites']),
+      completedAt: completedAtParsed,
     );
   }
 }

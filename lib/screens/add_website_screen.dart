@@ -19,6 +19,14 @@ class _AddWebsiteScreenState extends State<AddWebsiteScreen> {
   String? _editId;
 
   @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _urlCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
@@ -36,22 +44,24 @@ class _AddWebsiteScreenState extends State<AddWebsiteScreen> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     final title = _titleCtrl.text.trim();
     final url = _urlCtrl.text.trim();
     if (title.isEmpty || url.isEmpty) return;
     final provider = Provider.of<WebsitesProvider>(context, listen: false);
     if (_isEdit && _editId != null) {
-      provider.update(WebsiteEntry(
+      await provider.update(WebsiteEntry(
           id: _editId!, title: title, url: url, notes: _notesCtrl.text.trim()));
     } else {
-      provider.add(WebsiteEntry(
+      await provider.add(WebsiteEntry(
           id: Uuid().v4(),
           title: title,
           url: url,
           notes: _notesCtrl.text.trim()));
     }
-    Navigator.of(context).pop();
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -82,7 +92,7 @@ class _AddWebsiteScreenState extends State<AddWebsiteScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _save,
+                onPressed: () async => _save(),
                 child: const Text('Save'),
               ),
             ),

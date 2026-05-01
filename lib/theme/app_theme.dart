@@ -64,10 +64,10 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: darkGray,
         elevation: 4,
-        shadowColor: blue.withOpacity(0.3),
+        shadowColor: blue.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: blue.withOpacity(0.3), width: 1),
+          side: BorderSide(color: blue.withValues(alpha: 0.3), width: 1),
         ),
       ),
 
@@ -97,18 +97,18 @@ class AppTheme {
         fillColor: mediumGray,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: blue.withOpacity(0.5)),
+          borderSide: BorderSide(color: blue.withValues(alpha: 0.5)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: blue.withOpacity(0.3)),
+          borderSide: BorderSide(color: blue.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: blue, width: 2),
         ),
         labelStyle: const TextStyle(color: white),
-        hintStyle: TextStyle(color: white.withOpacity(0.5)),
+        hintStyle: TextStyle(color: white.withValues(alpha: 0.5)),
       ),
 
       // Elevated button theme
@@ -149,7 +149,7 @@ class AppTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: darkGray,
         selectedItemColor: yellow,
-        unselectedItemColor: white.withOpacity(0.6),
+        unselectedItemColor: white.withValues(alpha: 0.6),
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
@@ -168,7 +168,7 @@ class AppTheme {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: blue.withOpacity(0.5)),
+          side: BorderSide(color: blue.withValues(alpha: 0.5)),
         ),
       ),
 
@@ -190,7 +190,7 @@ class AppTheme {
           if (states.contains(WidgetState.selected)) {
             return blue;
           }
-          return white.withOpacity(0.5);
+          return white.withValues(alpha: 0.5);
         }),
       ),
 
@@ -200,7 +200,7 @@ class AppTheme {
           if (states.contains(WidgetState.selected)) {
             return yellow;
           }
-          return white.withOpacity(0.5);
+          return white.withValues(alpha: 0.5);
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -258,7 +258,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: lightCard,
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(color: lightBorder, width: 1),
@@ -302,7 +302,7 @@ class AppTheme {
           borderSide: const BorderSide(color: blue, width: 2),
         ),
         labelStyle: const TextStyle(color: lightTextSecondary),
-        hintStyle: TextStyle(color: lightTextSecondary.withOpacity(0.7)),
+        hintStyle: TextStyle(color: lightTextSecondary.withValues(alpha: 0.7)),
       ),
 
       // Elevated button theme
@@ -398,7 +398,7 @@ class AppTheme {
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return blue.withOpacity(0.5);
+            return blue.withValues(alpha: 0.5);
           }
           return lightBorder;
         }),

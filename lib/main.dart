@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
@@ -17,18 +18,33 @@ import 'screens/restrictions_screen.dart';
 import 'screens/edit_task_screen.dart';
 import 'models/task.dart';
 import 'services/home_widget_service.dart';
+import 'services/offline_cache_service.dart';
+import 'config/app_keys.dart';
 import 'package:go_router/go_router.dart';
 import 'theme/app_theme.dart';
 import 'utils/responsive.dart';
 
 void main() async {
-  debugPrint = (String? message, {int? wrapWidth}) {};
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive/cache once at startup.
+  try {
+    await OfflineCacheService().initialize();
+  } catch (e, st) {
+    debugPrint('❌ OfflineCacheService startup init failed: $e');
+    debugPrint('$st');
+  }
 
   // Initialize Home Widget Service
   try {
     await HomeWidgetService().initialize();
-  } catch (_) {}
+  } catch (e, st) {
+    debugPrint('❌ HomeWidgetService startup init failed: $e');
+    debugPrint('$st');
+  }
 
   runApp(const HabitApp());
 }
@@ -40,15 +56,16 @@ class HabitApp extends StatefulWidget {
   State<HabitApp> createState() => _HabitAppState();
 }
 
-class _HabitAppState extends State<HabitApp> {
+class _HabitAppState extends State<HabitApp> with WidgetsBindingObserver {
   late final GoRouter _router;
   StreamSubscription<Uri?>? _sub;
   static const _widgetChannel =
-      MethodChannel('com.android.krama/widget_actions');
+  MethodChannel(PlatformChannelNames.widgetActions);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _router = GoRouter(
       routes: [
         GoRoute(path: '/', builder: (c, s) => const HomeTabs()),
@@ -110,6 +127,9 @@ class _HabitAppState extends State<HabitApp> {
       if (uri.host == 'add-task') {
         debugPrint('👉 Action is add-task, pushing /add');
         _router.push('/add');
+      } else if (uri.host == 'toggle-task') {
+        // Toggle events are queued by the widget background callback.
+        unawaited(context.read<TaskProvider>().consumePendingWidgetTogglesNow());
       } else if (uri.host == 'open-app') {
         debugPrint('👉 Action is open-app, just bring to foreground');
         // Just bringing app to foreground is enough
@@ -118,7 +138,15 @@ class _HabitAppState extends State<HabitApp> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      unawaited(context.read<TaskProvider>().consumePendingWidgetTogglesNow());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
     super.dispose();
   }

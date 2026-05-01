@@ -1,15 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../config/app_keys.dart';
 
 /// Offline cache service using Hive for local storage
 /// Provides offline-first architecture with sync capabilities
 class OfflineCacheService {
-  static const String _tasksBoxName = 'tasks_cache';
-  static const String _archivedTasksBoxName = 'archived_tasks_cache';
-  static const String _restrictionsBoxName = 'restrictions_cache';
-  static const String _pendingOperationsBoxName = 'pending_operations';
-  static const String _metadataBoxName = 'cache_metadata';
-
   late Box<Map> _tasksBox;
   late Box<Map> _archivedTasksBox;
   late Box<Map> _restrictionsBox;
@@ -25,7 +20,10 @@ class OfflineCacheService {
   bool get isInitialized => _isInitialized;
 
   Map<String, dynamic> _safeMap(dynamic value) {
-    return Map<String, dynamic>.from(value as Map);
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return <String, dynamic>{};
   }
 
   /// Initialize Hive and open boxes
@@ -35,25 +33,29 @@ class OfflineCacheService {
     try {
       await Hive.initFlutter();
 
-      _tasksBox = await Hive.openBox<Map>(_tasksBoxName);
-      _archivedTasksBox = await Hive.openBox<Map>(_archivedTasksBoxName);
-      _restrictionsBox = await Hive.openBox<Map>(_restrictionsBoxName);
+        _tasksBox = await Hive.openBox<Map>(HiveBoxKeys.tasks);
+        _archivedTasksBox = await Hive.openBox<Map>(HiveBoxKeys.archivedTasks);
+        _restrictionsBox = await Hive.openBox<Map>(HiveBoxKeys.restrictions);
       _pendingOperationsBox =
-          await Hive.openBox<Map>(_pendingOperationsBoxName);
-      _metadataBox = await Hive.openBox(_metadataBoxName);
+          await Hive.openBox<Map>(HiveBoxKeys.pendingOperations);
+        _metadataBox = await Hive.openBox(HiveBoxKeys.metadata);
 
       // Ensure default restriction keys exist
-      if (_restrictionsBox.get('default_apps') == null) {
-        await _restrictionsBox.put('default_apps', {'items': <String>[]});
+      if (_restrictionsBox.get(HiveRestrictionsKeys.defaultApps) == null) {
+        await _restrictionsBox
+            .put(HiveRestrictionsKeys.defaultApps, {'items': <String>[]});
       }
-      if (_restrictionsBox.get('default_websites') == null) {
-        await _restrictionsBox.put('default_websites', {'items': <String>[]});
+      if (_restrictionsBox.get(HiveRestrictionsKeys.defaultWebsites) == null) {
+        await _restrictionsBox
+            .put(HiveRestrictionsKeys.defaultWebsites, {'items': <String>[]});
       }
-      if (_restrictionsBox.get('permanent_apps') == null) {
-        await _restrictionsBox.put('permanent_apps', {'items': <String>[]});
+      if (_restrictionsBox.get(HiveRestrictionsKeys.permanentApps) == null) {
+        await _restrictionsBox
+            .put(HiveRestrictionsKeys.permanentApps, {'items': <String>[]});
       }
-      if (_restrictionsBox.get('permanent_websites') == null) {
-        await _restrictionsBox.put('permanent_websites', {'items': <String>[]});
+      if (_restrictionsBox.get(HiveRestrictionsKeys.permanentWebsites) == null) {
+        await _restrictionsBox.put(
+            HiveRestrictionsKeys.permanentWebsites, {'items': <String>[]});
       }
 
       // Legacy remote-sync queue is no longer used in local-only flow.
@@ -77,8 +79,10 @@ class OfflineCacheService {
     try {
       final incoming = <String, Map>{
         for (final task in tasks)
-          task['id'] as String: Map<String, dynamic>.from(task),
+          (task['id']?.toString() ?? ''): Map<String, dynamic>.from(task),
       };
+
+      incoming.removeWhere((key, value) => key.trim().isEmpty);
 
       final toDelete = _tasksBox.keys
           .where((key) => !incoming.containsKey(key))
@@ -184,8 +188,10 @@ class OfflineCacheService {
     required List<String> websites,
   }) async {
     try {
-      await _restrictionsBox.put('default_apps', {'items': apps});
-      await _restrictionsBox.put('default_websites', {'items': websites});
+      await _restrictionsBox
+          .put(HiveRestrictionsKeys.defaultApps, {'items': apps});
+      await _restrictionsBox
+          .put(HiveRestrictionsKeys.defaultWebsites, {'items': websites});
       await _metadataBox.put(
           'restrictions_last_sync', DateTime.now().toIso8601String());
       debugPrint(
@@ -201,8 +207,10 @@ class OfflineCacheService {
     required List<String> websites,
   }) async {
     try {
-      await _restrictionsBox.put('permanent_apps', {'items': apps});
-      await _restrictionsBox.put('permanent_websites', {'items': websites});
+      await _restrictionsBox
+          .put(HiveRestrictionsKeys.permanentApps, {'items': apps});
+      await _restrictionsBox
+          .put(HiveRestrictionsKeys.permanentWebsites, {'items': websites});
       debugPrint(
           '✅ Cached permanent blocks: ${apps.length} apps, ${websites.length} websites');
     } catch (e) {
@@ -213,7 +221,7 @@ class OfflineCacheService {
   /// Get cached default restricted apps
   List<String> getCachedDefaultApps() {
     try {
-      final data = _restrictionsBox.get('default_apps');
+      final data = _restrictionsBox.get(HiveRestrictionsKeys.defaultApps);
       if (data != null && data['items'] != null) {
         return List<String>.from(data['items']);
       }
@@ -227,7 +235,7 @@ class OfflineCacheService {
   /// Get cached default restricted websites
   List<String> getCachedDefaultWebsites() {
     try {
-      final data = _restrictionsBox.get('default_websites');
+      final data = _restrictionsBox.get(HiveRestrictionsKeys.defaultWebsites);
       if (data != null && data['items'] != null) {
         return List<String>.from(data['items']);
       }
@@ -241,7 +249,7 @@ class OfflineCacheService {
   /// Get cached permanent blocked apps
   List<String> getCachedPermanentApps() {
     try {
-      final data = _restrictionsBox.get('permanent_apps');
+      final data = _restrictionsBox.get(HiveRestrictionsKeys.permanentApps);
       if (data != null && data['items'] != null) {
         return List<String>.from(data['items']);
       }
@@ -255,7 +263,8 @@ class OfflineCacheService {
   /// Get cached permanent blocked websites
   List<String> getCachedPermanentWebsites() {
     try {
-      final data = _restrictionsBox.get('permanent_websites');
+      final data =
+          _restrictionsBox.get(HiveRestrictionsKeys.permanentWebsites);
       if (data != null && data['items'] != null) {
         return List<String>.from(data['items']);
       }

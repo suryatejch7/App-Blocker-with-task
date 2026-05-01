@@ -26,7 +26,7 @@ class _HomeTabsState extends State<HomeTabs> {
     final backgroundColor = isDark ? AppTheme.black : AppTheme.lightBackground;
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
     final scale = context.responsiveScale;
     final isCompact = context.isCompactWidth;
 
@@ -148,7 +148,7 @@ class _HomeTabsState extends State<HomeTabs> {
           child: Container(
             height: 1.5,
             color: isDark
-                ? AppTheme.lightGray.withOpacity(0.65)
+                ? AppTheme.lightGray.withValues(alpha: 0.65)
                 : AppTheme.lightBorder,
           ),
         ),
@@ -308,7 +308,7 @@ class _TasksTabState extends State<_TasksTab> {
                         final isDark =
                             Theme.of(context).brightness == Brightness.dark;
                         final subtextColor = isDark
-                            ? AppTheme.white.withOpacity(0.6)
+                          ? AppTheme.white.withValues(alpha: 0.6)
                             : AppTheme.lightTextSecondary;
                         final accentColor =
                             isDark ? AppTheme.yellow : AppTheme.orange;
@@ -397,7 +397,7 @@ class _TasksTabState extends State<_TasksTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
     final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
 
     final header = Container(
@@ -408,8 +408,8 @@ class _TasksTabState extends State<_TasksTab> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: isCompleted
-                  ? Colors.green.withOpacity(0.15)
-                  : accentColor.withOpacity(0.15),
+                  ? Colors.green.withValues(alpha: 0.15)
+                  : accentColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -432,7 +432,7 @@ class _TasksTabState extends State<_TasksTab> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: subtextColor.withOpacity(0.15),
+              color: subtextColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -476,7 +476,7 @@ class _TasksTabState extends State<_TasksTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
     final activeColor = isSelected ? accentColor : subtextColor;
 
     return InkWell(
@@ -486,12 +486,12 @@ class _TasksTabState extends State<_TasksTab> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color:
-              isSelected ? activeColor.withOpacity(0.15) : Colors.transparent,
+              isSelected ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? activeColor.withOpacity(0.3)
-                : subtextColor.withOpacity(0.2),
+                ? activeColor.withValues(alpha: 0.3)
+                : subtextColor.withValues(alpha: 0.2),
           ),
         ),
         child: Row(
@@ -532,7 +532,7 @@ class _TaskCard extends StatelessWidget {
     final cardColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
     final accentColor = isDark ? AppTheme.yellow : AppTheme.orange;
 
     final borderColor = isOverdue
@@ -690,7 +690,7 @@ class _EmptyTasksState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
 
     return Center(
       child: Column(
@@ -699,7 +699,7 @@ class _EmptyTasksState extends StatelessWidget {
           Icon(
             Icons.task_alt,
             size: 100,
-            color: AppTheme.blue.withOpacity(0.3),
+            color: AppTheme.blue.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 24),
           Text(
@@ -758,9 +758,9 @@ class _TaskChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.8)),
+        border: Border.all(color: color.withValues(alpha: 0.8)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -864,7 +864,7 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
 
     return Consumer<RestrictionsProvider>(
       builder: (context, provider, child) {
@@ -1150,7 +1150,7 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
 
     try {
       final installedApps = await provider.getInstalledApps();
-      if (!mounted) return;
+      if (!ctx.mounted) return;
 
       Navigator.of(ctx).pop(); // close loading
 
@@ -1159,7 +1159,7 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
           ? provider.permanentlyBlockedApps
           : provider.defaultRestrictedApps;
 
-      if (!mounted) return;
+      if (!ctx.mounted) return;
       final selectedApps = await showModalBottomSheet<List<String>>(
         context: ctx,
         isScrollControlled: true,
@@ -1196,7 +1196,7 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!ctx.mounted) return;
       Navigator.of(ctx).pop(); // close loading
       _showTopRightToast('Error loading apps: $e', backgroundColor: Colors.red);
     }
@@ -1252,12 +1252,12 @@ class _RestrictionsToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final defaultBorder =
-        isDark ? AppTheme.lightGray.withOpacity(0.8) : AppTheme.lightBorder;
+      isDark ? AppTheme.lightGray.withValues(alpha: 0.8) : AppTheme.lightBorder;
     final defaultTextColor = isDark ? AppTheme.white : AppTheme.lightText;
 
     final borderColor = selected ? AppTheme.blue : defaultBorder;
     final bgColor =
-        selected ? AppTheme.blue.withOpacity(0.12) : Colors.transparent;
+      selected ? AppTheme.blue.withValues(alpha: 0.12) : Colors.transparent;
     final textColor = selected ? AppTheme.blue : defaultTextColor;
 
     return GestureDetector(
@@ -1306,11 +1306,11 @@ class _RestrictionItemCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
     final borderColor = isPermanent
-        ? Colors.red.withOpacity(0.5)
+      ? Colors.red.withValues(alpha: 0.5)
         : (isDark ? AppTheme.lightGray : AppTheme.lightBorder);
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
     final accentColor = isPermanent ? Colors.red : AppTheme.blue;
 
     return Container(
@@ -1326,7 +1326,7 @@ class _RestrictionItemCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.12),
+              color: accentColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -1360,7 +1360,7 @@ class _RestrictionItemCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.15),
+                          color: Colors.red.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
@@ -1496,7 +1496,7 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
     final accentColor = widget.isPermanent ? Colors.red : AppTheme.blue;
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final bgColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
@@ -1510,7 +1510,7 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
             blurRadius: 30,
             offset: const Offset(0, -10),
           ),
@@ -1559,7 +1559,7 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
                       Text(
                         'Tap apps to multi-select',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: subtextColor.withOpacity(0.85),
+                              color: subtextColor.withValues(alpha: 0.85),
                             ),
                       ),
                     ],
@@ -1603,7 +1603,7 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -1654,7 +1654,7 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
                             : null,
                         filled: true,
                         fillColor: isDark
-                            ? AppTheme.black.withOpacity(0.30)
+                          ? AppTheme.black.withValues(alpha: 0.30)
                             : AppTheme.lightBackground,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -1680,7 +1680,7 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
                         Icon(Icons.search_off,
                             size: 44,
                             color: isDark
-                                ? AppTheme.white.withOpacity(0.45)
+                            ? AppTheme.white.withValues(alpha: 0.45)
                                 : AppTheme.lightTextSecondary),
                         const SizedBox(height: 10),
                         Text(
@@ -1731,16 +1731,16 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
                                 horizontal: 12, vertical: 10),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? accentColor.withOpacity(0.10)
+                                ? accentColor.withValues(alpha: 0.10)
                                   : (isDark
-                                      ? AppTheme.black.withOpacity(0.15)
+                                  ? AppTheme.black.withValues(alpha: 0.15)
                                       : AppTheme.lightBackground),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: isSelected
-                                    ? accentColor.withOpacity(0.7)
+                                    ? accentColor.withValues(alpha: 0.7)
                                     : (isDark
-                                        ? AppTheme.lightGray.withOpacity(0.35)
+                                        ? AppTheme.lightGray.withValues(alpha: 0.35)
                                         : AppTheme.lightBorder),
                               ),
                             ),
@@ -1750,7 +1750,7 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
                                   width: 34,
                                   height: 34,
                                   decoration: BoxDecoration(
-                                    color: accentColor.withOpacity(0.12),
+                                      color: accentColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Icon(
@@ -1852,7 +1852,7 @@ class _PillToast extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1931,7 +1931,7 @@ class _AddWebsiteBottomSheetState extends State<_AddWebsiteBottomSheet> {
     final bgColor = isDark ? AppTheme.darkGray : AppTheme.lightCard;
     final textColor = isDark ? AppTheme.white : AppTheme.lightText;
     final subtextColor =
-        isDark ? AppTheme.white.withOpacity(0.6) : AppTheme.lightTextSecondary;
+      isDark ? AppTheme.white.withValues(alpha: 0.6) : AppTheme.lightTextSecondary;
 
     return Container(
       decoration: BoxDecoration(
@@ -1942,7 +1942,7 @@ class _AddWebsiteBottomSheetState extends State<_AddWebsiteBottomSheet> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
             blurRadius: 30,
             offset: const Offset(0, -10),
           ),
@@ -2002,7 +2002,7 @@ class _AddWebsiteBottomSheetState extends State<_AddWebsiteBottomSheet> {
                             prefixIcon: const Icon(Icons.language),
                             filled: true,
                             fillColor: isDark
-                                ? AppTheme.black.withOpacity(0.30)
+                              ? AppTheme.black.withValues(alpha: 0.30)
                                 : AppTheme.lightBackground,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -2020,7 +2020,7 @@ class _AddWebsiteBottomSheetState extends State<_AddWebsiteBottomSheet> {
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.12),
+                            color: accentColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child:
@@ -2068,11 +2068,11 @@ class _AddWebsiteBottomSheetState extends State<_AddWebsiteBottomSheet> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color:
-                isDark ? AppTheme.black.withOpacity(0.2) : Colors.grey.shade200,
+                isDark ? AppTheme.black.withValues(alpha: 0.2) : Colors.grey.shade200,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isDark
-                  ? AppTheme.lightGray.withOpacity(0.2)
+                  ? AppTheme.lightGray.withValues(alpha: 0.2)
                   : Colors.grey.shade300,
             ),
           ),
