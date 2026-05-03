@@ -29,9 +29,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("C:\\Users\\surya\\.android\\krama-release.jks")
-            storePassword = "yourpassword"
+            storePassword = "Suryach_07"
             keyAlias = "krama"
-            keyPassword = "yourpassword"
+            keyPassword = "Suryach_07"
         }
     }
 
