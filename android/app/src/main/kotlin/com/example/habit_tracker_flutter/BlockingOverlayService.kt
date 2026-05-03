@@ -16,6 +16,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.ScrollView
 import org.json.JSONArray
@@ -36,13 +37,20 @@ class BlockingOverlayService : Service() {
         private var instance: BlockingOverlayService? = null
         private var isOverlayShowing = false
         
-        fun showOverlay(context: Context, blockedPackage: String, isPermanent: Boolean, tasksJson: String) {
+        fun showOverlay(
+            context: Context,
+            blockedPackage: String,
+            isPermanent: Boolean,
+            tasksJson: String,
+            emergencyLockedOut: Boolean
+        ) {
             android.util.Log.d("BlockingOverlayService", "showOverlay called for $blockedPackage")
             
             val intent = Intent(context, BlockingOverlayService::class.java).apply {
                 putExtra("blockedPackage", blockedPackage)
                 putExtra("isPermanent", isPermanent)
                 putExtra("pendingTasks", tasksJson)
+                putExtra("emergencyLockedOut", emergencyLockedOut)
                 putExtra("action", "show")
             }
             
@@ -140,8 +148,9 @@ class BlockingOverlayService : Service() {
                 val blockedPackage = intent?.getStringExtra("blockedPackage") ?: ""
                 val isPermanent = intent?.getBooleanExtra("isPermanent", false) ?: false
                 val tasksJson = intent?.getStringExtra("pendingTasks") ?: "[]"
+                val emergencyLockedOut = intent?.getBooleanExtra("emergencyLockedOut", false) ?: false
                 android.util.Log.d("BlockingOverlayService", "Creating overlay for $blockedPackage")
-                createOverlay(blockedPackage, isPermanent, tasksJson)
+                createOverlay(blockedPackage, isPermanent, tasksJson, emergencyLockedOut)
             }
             "hide" -> {
                 removeOverlay()
@@ -153,7 +162,12 @@ class BlockingOverlayService : Service() {
         return START_NOT_STICKY
     }
     
-    private fun createOverlay(blockedPackage: String, isPermanent: Boolean, tasksJson: String) {
+    private fun createOverlay(
+        blockedPackage: String,
+        isPermanent: Boolean,
+        tasksJson: String,
+        emergencyLockedOut: Boolean
+    ) {
         // If overlay already showing, don't recreate
         if (isOverlayShowing && overlayView != null) {
             android.util.Log.d("BlockingOverlayService", "Overlay already showing, skipping")
@@ -192,7 +206,7 @@ class BlockingOverlayService : Service() {
         }
         
         // Create overlay layout
-        overlayView = createOverlayLayout(isPermanent, tasks)
+        overlayView = createOverlayLayout(blockedPackage, isPermanent, tasks, emergencyLockedOut)
         
         // Create layout params for the overlay - FULL SCREEN BLOCKING
         val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -229,7 +243,12 @@ class BlockingOverlayService : Service() {
         }
     }
     
-    private fun createOverlayLayout(isPermanent: Boolean, tasks: List<Map<String, Any>>): View {
+    private fun createOverlayLayout(
+        blockedPackage: String,
+        isPermanent: Boolean,
+        tasks: List<Map<String, Any>>,
+        emergencyLockedOut: Boolean
+    ): View {
         // Root layout - FULLY OPAQUE to block everything behind it
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -349,6 +368,64 @@ class BlockingOverlayService : Service() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
+        }
+
+        if (!isPermanent && !emergencyLockedOut) {
+            // Emergency extend section (one-shot per package while restrictions stay active)
+            val emergencyHeader = TextView(this).apply {
+                text = "Emergency: Extend by X secs"
+                textSize = 14f
+                setTextColor(Color.parseColor("#BBBBBB"))
+                setTypeface(null, Typeface.BOLD)
+                setPadding(0, 0, 0, 12)
+            }
+            buttonLayout.addView(emergencyHeader)
+
+            val emergencyValueText = TextView(this).apply {
+                text = "10 secs"
+                textSize = 14f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, 12)
+            }
+            buttonLayout.addView(emergencyValueText)
+
+            val seekBar = SeekBar(this).apply {
+                // 6 discrete positions (0..5) => 10..60 secs
+                max = 5
+                progress = 0
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 20)
+                }
+            }
+
+            seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                    val secs = (progress + 1) * 10
+                    emergencyValueText.text = "$secs secs"
+                }
+
+                override fun onStartTrackingTouch(sb: SeekBar?) {
+                    // no-op
+                }
+
+                override fun onStopTrackingTouch(sb: SeekBar?) {
+                    val progress = sb?.progress ?: 0
+                    val secs = (progress + 1) * 10
+
+                    // Start emergency release and dismiss blocking UI.
+                    AppBlockingService.requestEmergencyRelease(applicationContext, blockedPackage, secs)
+                    sendBroadcast(Intent(AppBlockingService.ACTION_DISMISS_BLOCKING_UI))
+
+                    removeOverlay()
+                    stopForeground(true)
+                    stopSelf()
+                }
+            })
+            buttonLayout.addView(seekBar)
         }
         
         val openAppButton = TextView(this).apply {

@@ -1,6 +1,9 @@
 package com.android.krama
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.os.Bundle
 import android.graphics.Color
@@ -11,10 +14,13 @@ import android.view.WindowManager
 import android.widget.TextView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.os.Build
 import org.json.JSONArray
 
 class BlockingActivity : Activity() {
+
+    private var dismissReceiver: BroadcastReceiver? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,10 +32,14 @@ class BlockingActivity : Activity() {
         val blockedPackage = intent.getStringExtra("blockedPackage") ?: ""
         val isPermanent = intent.getBooleanExtra("isPermanent", false)
         val tasksJson = intent.getStringExtra("pendingTasks") ?: "[]"
+        val emergencyLockedOut = intent.getBooleanExtra("emergencyLockedOut", false)
         
         android.util.Log.d("BlockingActivity", "Blocked package: $blockedPackage")
         android.util.Log.d("BlockingActivity", "Is permanent: $isPermanent")
         android.util.Log.d("BlockingActivity", "Tasks JSON: $tasksJson")
+
+        // Allow the overlay/service to dismiss this activity (e.g., for emergency release)
+        registerDismissReceiver()
         
         // Parse tasks
         val tasks = mutableListOf<Map<String, Any>>()
@@ -179,6 +189,59 @@ class BlockingActivity : Activity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
+
+        if (!isPermanent && !emergencyLockedOut) {
+            val emergencyHeader = TextView(this).apply {
+                text = "Emergency: Extend by X secs"
+                textSize = 14f
+                setTextColor(Color.parseColor("#BBBBBB"))
+                setTypeface(null, Typeface.BOLD)
+                setPadding(0, 0, 0, 12)
+            }
+            buttonLayout.addView(emergencyHeader)
+
+            val emergencyValueText = TextView(this).apply {
+                text = "10 secs"
+                textSize = 14f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, 12)
+            }
+            buttonLayout.addView(emergencyValueText)
+
+            val seekBar = SeekBar(this).apply {
+                max = 5
+                progress = 0
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 20)
+                }
+            }
+
+            seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                    val secs = (progress + 1) * 10
+                    emergencyValueText.text = "$secs secs"
+                }
+
+                override fun onStartTrackingTouch(sb: SeekBar?) {
+                    // no-op
+                }
+
+                override fun onStopTrackingTouch(sb: SeekBar?) {
+                    val progress = sb?.progress ?: 0
+                    val secs = (progress + 1) * 10
+
+                    AppBlockingService.requestEmergencyRelease(applicationContext, blockedPackage, secs)
+                    BlockingOverlayService.hideOverlay(applicationContext)
+                    finish()
+                }
+            })
+
+            buttonLayout.addView(seekBar)
+        }
         
         val openAppButton = TextView(this).apply {
             text = if (isPermanent) "Open Krama" else "Open App to Complete Tasks"
@@ -201,6 +264,35 @@ class BlockingActivity : Activity() {
         rootLayout.addView(buttonLayout)
         
         setContentView(rootLayout)
+    }
+
+    private fun registerDismissReceiver() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                finish()
+            }
+        }
+        dismissReceiver = receiver
+        val filter = IntentFilter(AppBlockingService.ACTION_DISMISS_BLOCKING_UI)
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(receiver, filter)
+        }
+    }
+
+    override fun onDestroy() {
+        dismissReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {
+                // ignore
+            }
+        }
+        dismissReceiver = null
+        super.onDestroy()
     }
     
     private fun createTaskCard(task: Map<String, Any>): LinearLayout {

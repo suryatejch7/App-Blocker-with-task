@@ -123,3 +123,29 @@ class Task {
     );
   }
 }
+
+enum TaskRepeatMode {
+  once,
+  daily,
+  weekly,
+  custom,
+}
+
+enum TaskRestrictionMode {
+  defaultMode('default'),
+  custom('custom');
+
+  const TaskRestrictionMode(this.storageValue);
+
+  final String storageValue;
+
+  static TaskRestrictionMode fromStorage(String? value) {
+    switch ((value ?? '').trim().toLowerCase()) {
+      case 'custom':
+        return TaskRestrictionMode.custom;
+      case 'default':
+      default:
+        return TaskRestrictionMode.defaultMode;
+    }
+  }
+}

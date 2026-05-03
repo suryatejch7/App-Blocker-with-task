@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../providers/task_provider.dart';
 import '../providers/restrictions_provider.dart';
 import '../models/task.dart';
+import '../services/overlay_toast_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive.dart';
 
@@ -798,22 +799,12 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
   int _selectedIndex = 0;
   // false = Default (task-based), true = Permanent (always blocked)
   bool _showPermanent = false;
-  final List<_OverlayToastItem> _activeToasts = [];
+  final OverlayToastService _toastService = OverlayToastService();
 
   @override
   void dispose() {
-    for (final toast in _activeToasts) {
-      toast.entry.remove();
-      toast.timer.cancel();
-    }
-    _activeToasts.clear();
+    _toastService.dispose();
     super.dispose();
-  }
-
-  void _repositionToasts() {
-    for (final toast in _activeToasts) {
-      toast.entry.markNeedsBuild();
-    }
   }
 
   void _showTopRightToast(
@@ -821,43 +812,14 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
     Color? backgroundColor,
     Duration duration = const Duration(seconds: 3),
   }) {
-    final overlay = Overlay.of(context, rootOverlay: true);
-
-    final toastId = DateTime.now().microsecondsSinceEpoch.toString();
-    late final OverlayEntry entry;
-
-    entry = OverlayEntry(
-      builder: (overlayContext) {
-        final index = _activeToasts.indexWhere((t) => t.id == toastId);
-        final safeTop = MediaQuery.of(overlayContext).padding.top;
-        final y = safeTop + 12 + ((index < 0 ? 0 : index) * 40.0);
-
-        return Positioned(
-          top: y,
-          right: 12,
-          child: IgnorePointer(
-            child: _PillToast(
-              message: message,
-              backgroundColor: backgroundColor ?? AppTheme.blue,
-            ),
-          ),
-        );
-      },
+    _toastService.showTopRightToast(
+      context: context,
+      duration: duration,
+      child: _PillToast(
+        message: message,
+        backgroundColor: backgroundColor ?? AppTheme.blue,
+      ),
     );
-
-    final timer = Timer(duration, () {
-      final i = _activeToasts.indexWhere((t) => t.id == toastId);
-      if (i >= 0) {
-        _activeToasts[i].entry.remove();
-        _activeToasts.removeAt(i);
-        _repositionToasts();
-      }
-    });
-
-    _activeToasts
-        .add(_OverlayToastItem(id: toastId, entry: entry, timer: timer));
-    overlay.insert(entry);
-    _repositionToasts();
   }
 
   @override
@@ -1818,18 +1780,6 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
       ),
     );
   }
-}
-
-class _OverlayToastItem {
-  final String id;
-  final OverlayEntry entry;
-  final Timer timer;
-
-  _OverlayToastItem({
-    required this.id,
-    required this.entry,
-    required this.timer,
-  });
 }
 
 class _PillToast extends StatelessWidget {

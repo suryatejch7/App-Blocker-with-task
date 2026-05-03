@@ -23,6 +23,12 @@ class AppBlockingService : AccessibilityService() {
     private var pendingTasks = mutableListOf<Map<String, Any>>()
     private var permanentlyBlockedApps = mutableSetOf<String>()
     private var permanentlyBlockedWebsites = mutableSetOf<String>()
+
+    // Emergency release (one-shot per package while restrictions stay active)
+    private var emergencyReleasePackage: String? = null
+    private var emergencyReleaseUntilMs: Long = 0L
+    private var emergencyReblockRunnable: Runnable? = null
+    private var emergencyLockoutPackages = mutableSetOf<String>()
     
     // Track recently blocked packages to avoid spam
     private var lastBlockedPackage: String? = null
@@ -44,6 +50,9 @@ class AppBlockingService : AccessibilityService() {
         const val KEY_PENDING_TASKS = "pending_tasks"
         const val KEY_PERMANENTLY_BLOCKED_APPS = "permanently_blocked_apps"
         const val KEY_PERMANENTLY_BLOCKED_WEBSITES = "permanently_blocked_websites"
+        const val KEY_EMERGENCY_LOCKOUT_PACKAGES = "emergency_lockout_packages"
+
+        const val ACTION_DISMISS_BLOCKING_UI = "com.android.krama.DISMISS_BLOCKING_UI"
         
         private var instance: AppBlockingService? = null
         
@@ -75,6 +84,11 @@ class AppBlockingService : AccessibilityService() {
                     putString(KEY_PENDING_TASKS, JSONArray(tasks.map { JSONObject(it) }).toString())
                     putString(KEY_PERMANENTLY_BLOCKED_APPS, JSONArray(permanentApps).toString())
                     putString(KEY_PERMANENTLY_BLOCKED_WEBSITES, JSONArray(permanentWebsites).toString())
+
+                    // If restrictions are turned off, clear emergency lockouts.
+                    if (!active) {
+                        putString(KEY_EMERGENCY_LOCKOUT_PACKAGES, JSONArray(emptyList<String>()).toString())
+                    }
                     apply()
                 }
             
@@ -85,6 +99,14 @@ class AppBlockingService : AccessibilityService() {
                 pendingTasks = tasks.toMutableList()
                 permanentlyBlockedApps = permanentApps.toMutableSet()
                 permanentlyBlockedWebsites = permanentWebsites.toMutableSet()
+
+                if (!active) {
+                    emergencyLockoutPackages.clear()
+                    emergencyReleasePackage = null
+                    emergencyReleaseUntilMs = 0L
+                    emergencyReblockRunnable?.let { handler.removeCallbacks(it) }
+                    emergencyReblockRunnable = null
+                }
                 
                 android.util.Log.d("AppBlockingService", "Updated in-memory lists")
                 android.util.Log.d("AppBlockingService", "Applied to live service instance")
@@ -96,6 +118,26 @@ class AppBlockingService : AccessibilityService() {
                 "AppBlockingService",
                 "⚠️ SERVICE INSTANCE IS NULL. Restrictions saved and will apply when service connects."
             )
+            return false
+        }
+
+        /**
+         * Request a one-time emergency release for a blocked package.
+         * This temporarily suspends blocking for [durationSeconds] and then re-checks.
+         */
+        fun requestEmergencyRelease(
+            context: Context,
+            blockedPackage: String,
+            durationSeconds: Int
+        ): Boolean {
+            val clampedSeconds = durationSeconds.coerceIn(10, 60)
+
+            instance?.apply {
+                startEmergencyRelease(blockedPackage, clampedSeconds)
+                return true
+            }
+
+            android.util.Log.w("AppBlockingService", "Emergency release requested but service instance is null")
             return false
         }
     }
@@ -114,6 +156,7 @@ class AppBlockingService : AccessibilityService() {
         val tasksJson = prefs.getString(KEY_PENDING_TASKS, "[]")
         val permanentAppsJson = prefs.getString(KEY_PERMANENTLY_BLOCKED_APPS, "[]")
         val permanentWebsitesJson = prefs.getString(KEY_PERMANENTLY_BLOCKED_WEBSITES, "[]")
+        val emergencyLockoutJson = prefs.getString(KEY_EMERGENCY_LOCKOUT_PACKAGES, "[]")
         restrictionsActive = prefs.getBoolean(KEY_RESTRICTIONS_ACTIVE, false)
         
         android.util.Log.d("AppBlockingService", "Apps JSON from prefs: $appsJson")
@@ -125,6 +168,7 @@ class AppBlockingService : AccessibilityService() {
         val tasksArray = JSONArray(tasksJson)
         val permanentAppsArray = JSONArray(permanentAppsJson)
         val permanentWebsitesArray = JSONArray(permanentWebsitesJson)
+        val emergencyLockoutArray = JSONArray(emergencyLockoutJson)
         
         restrictedApps.clear()
         for (i in 0 until appsArray.length()) {
@@ -155,11 +199,17 @@ class AppBlockingService : AccessibilityService() {
         for (i in 0 until permanentWebsitesArray.length()) {
             permanentlyBlockedWebsites.add(permanentWebsitesArray.getString(i))
         }
+
+        emergencyLockoutPackages.clear()
+        for (i in 0 until emergencyLockoutArray.length()) {
+            emergencyLockoutPackages.add(emergencyLockoutArray.getString(i))
+        }
         
         android.util.Log.d("AppBlockingService", "Loaded ${restrictedApps.size} restricted apps: $restrictedApps")
         android.util.Log.d("AppBlockingService", "Loaded ${restrictedWebsites.size} restricted websites: $restrictedWebsites")
         android.util.Log.d("AppBlockingService", "Loaded ${pendingTasks.size} active/overdue task payload entries")
         android.util.Log.d("AppBlockingService", "Loaded ${permanentlyBlockedApps.size} permanently blocked apps")
+        android.util.Log.d("AppBlockingService", "Loaded ${emergencyLockoutPackages.size} emergency lockout packages")
         android.util.Log.d("AppBlockingService", "========== LOAD COMPLETE ==========")
     }
     
@@ -233,6 +283,8 @@ class AppBlockingService : AccessibilityService() {
         if (packageName == application.packageName || packageName == "com.android.krama") {
             return
         }
+
+        val emergencyActiveForThisPackage = isEmergencyReleaseActiveFor(packageName)
         
         // Also scan ALL visible windows to catch floating windows/split screen
         if (shouldScanAllWindows) {
@@ -240,21 +292,21 @@ class AppBlockingService : AccessibilityService() {
         }
         
         // Check if app is permanently blocked
-        if (permanentlyBlockedApps.contains(packageName)) {
+        if (!emergencyActiveForThisPackage && permanentlyBlockedApps.contains(packageName)) {
             android.util.Log.d("AppBlockingService", "🚫 PERMANENTLY BLOCKING APP: $packageName")
             blockApp(packageName, isPermanent = true)
             return
         }
         
         // Check if app is restricted by tasks
-        if (restrictedApps.contains(packageName)) {
+        if (!emergencyActiveForThisPackage && restrictedApps.contains(packageName)) {
             android.util.Log.d("AppBlockingService", "🚫 BLOCKING APP (task-based): $packageName")
             blockApp(packageName, isPermanent = false)
             return
         }
         
         // Check if it's a browser with restricted website
-        if (isBrowserApp(packageName)) {
+        if (!emergencyActiveForThisPackage && isBrowserApp(packageName)) {
             android.util.Log.d("AppBlockingService", "Browser detected: $packageName")
             // Check if browser is permanently blocked due to websites
             if (permanentlyBlockedWebsites.isNotEmpty()) {
@@ -294,6 +346,9 @@ class AppBlockingService : AccessibilityService() {
                             (permanentlyBlockedWebsites.isNotEmpty() || restrictedWebsites.isNotEmpty())
                         
                         if (isPermanentlyBlocked || isTaskBlocked || isBrowserWithBlockedSites) {
+                            if (isEmergencyReleaseActiveFor(windowPackage)) {
+                                return@forEach
+                            }
                             android.util.Log.d("AppBlockingService", "⚠️ Found blocked app in visible window: $windowPackage")
                             blockApp(windowPackage, isPermanentlyBlocked || (isBrowserWithBlockedSites && permanentlyBlockedWebsites.isNotEmpty()))
                         }
@@ -302,6 +357,94 @@ class AppBlockingService : AccessibilityService() {
             }
         } catch (e: Exception) {
             android.util.Log.e("AppBlockingService", "Error scanning windows: $e")
+        }
+    }
+
+    private fun isEmergencyReleaseActiveFor(packageName: String): Boolean {
+        val until = emergencyReleaseUntilMs
+        val allowedPackage = emergencyReleasePackage
+        if (allowedPackage == null || until <= 0L) return false
+        return allowedPackage == packageName && System.currentTimeMillis() < until
+    }
+
+    private fun startEmergencyRelease(blockedPackage: String, durationSeconds: Int) {
+        val now = System.currentTimeMillis()
+        emergencyReleasePackage = blockedPackage
+        emergencyReleaseUntilMs = now + (durationSeconds * 1000L)
+
+        // Cancel any previous expiry callback.
+        emergencyReblockRunnable?.let { handler.removeCallbacks(it) }
+
+        emergencyReblockRunnable = Runnable {
+            onEmergencyReleaseExpired(blockedPackage)
+        }.also { runnable ->
+            handler.postDelayed(runnable, durationSeconds * 1000L)
+        }
+
+        // Dismiss any currently showing blocking UI so the user can proceed.
+        try {
+            sendBroadcast(Intent(ACTION_DISMISS_BLOCKING_UI))
+            if (BlockingOverlayService.isShowing()) {
+                BlockingOverlayService.hideOverlay(this)
+            }
+        } catch (_: Exception) {
+            // ignore
+        }
+
+        android.util.Log.d("AppBlockingService", "🆘 Emergency release started for $blockedPackage: ${durationSeconds}s")
+    }
+
+    private fun onEmergencyReleaseExpired(blockedPackage: String) {
+        emergencyReleasePackage = null
+        emergencyReleaseUntilMs = 0L
+        emergencyReblockRunnable = null
+
+        if (!restrictionsActive) return
+
+        val topPackage = getTopVisiblePackageName()
+        if (topPackage != blockedPackage) {
+            android.util.Log.d("AppBlockingService", "Emergency release expired; $blockedPackage not foreground (top=$topPackage)")
+            return
+        }
+
+        val isPermanentlyBlocked = permanentlyBlockedApps.contains(blockedPackage) ||
+            (isBrowserApp(blockedPackage) && permanentlyBlockedWebsites.isNotEmpty())
+        val isTaskBlocked = restrictedApps.contains(blockedPackage) ||
+            (isBrowserApp(blockedPackage) && restrictedWebsites.isNotEmpty())
+
+        if (isPermanentlyBlocked || isTaskBlocked) {
+            android.util.Log.d("AppBlockingService", "⏱️ Emergency release expired; re-blocking $blockedPackage")
+
+            // Lock out emergency extend for this package since user stayed in the blocked app.
+            emergencyLockoutPackages.add(blockedPackage)
+            try {
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit()
+                    .putString(KEY_EMERGENCY_LOCKOUT_PACKAGES, JSONArray(emergencyLockoutPackages.toList()).toString())
+                    .apply()
+            } catch (_: Exception) {
+                // ignore
+            }
+
+            showBlockingScreen(blockedPackage, isPermanentlyBlocked)
+        }
+    }
+
+    private fun getTopVisiblePackageName(): String? {
+        // Best-effort: choose the topmost application window by layer.
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val candidates = windows
+                    ?.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.root != null }
+                    ?.sortedByDescending { it.layer }
+
+                candidates?.firstOrNull()?.root?.packageName?.toString()
+                    ?: rootInActiveWindow?.packageName?.toString()
+            } else {
+                rootInActiveWindow?.packageName?.toString()
+            }
+        } catch (_: Exception) {
+            rootInActiveWindow?.packageName?.toString()
         }
     }
     
@@ -320,6 +463,11 @@ class AppBlockingService : AccessibilityService() {
     }
     
     private fun blockApp(blockedPackage: String, isPermanent: Boolean) {
+        if (isEmergencyReleaseActiveFor(blockedPackage)) {
+            android.util.Log.d("AppBlockingService", "Emergency release active; skipping block for $blockedPackage")
+            return
+        }
+
         val currentTime = System.currentTimeMillis()
         
         // Avoid blocking the same app multiple times in quick succession
@@ -425,7 +573,8 @@ class AppBlockingService : AccessibilityService() {
             
             if (canDrawOverlays) {
                 android.util.Log.d("AppBlockingService", "🔲 Showing blocking overlay for $blockedPackage")
-                BlockingOverlayService.showOverlay(this, blockedPackage, isPermanent, tasksJson)
+                val emergencyLockedOut = emergencyLockoutPackages.contains(blockedPackage)
+                BlockingOverlayService.showOverlay(this, blockedPackage, isPermanent, tasksJson, emergencyLockedOut)
             } else {
                 android.util.Log.d("AppBlockingService", "⚠️ No overlay permission, using activity only")
             }
@@ -444,6 +593,7 @@ class AppBlockingService : AccessibilityService() {
             putExtra("blockedPackage", blockedPackage)
             putExtra("isPermanent", isPermanent)
             putExtra("pendingTasks", tasksJson)
+            putExtra("emergencyLockedOut", emergencyLockoutPackages.contains(blockedPackage))
         }
         startActivity(blockIntent)
     }
