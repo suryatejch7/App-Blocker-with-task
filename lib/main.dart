@@ -13,7 +13,6 @@ import 'screens/add_task_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/add_apps_screen.dart';
 import 'screens/add_website_screen.dart';
-import 'screens/restrictions_screen.dart';
 import 'screens/edit_task_screen.dart';
 import 'models/task.dart';
 import 'services/home_widget_service.dart';
@@ -61,9 +60,6 @@ class _HabitAppState extends State<HabitApp> {
         GoRoute(path: '/apps/add', builder: (c, s) => const AddAppsScreen()),
         GoRoute(
             path: '/websites/add', builder: (c, s) => const AddWebsiteScreen()),
-        GoRoute(
-            path: '/restrictions',
-            builder: (c, s) => const RestrictionsScreen()),
       ],
     );
 

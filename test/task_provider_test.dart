@@ -26,8 +26,8 @@ void main() {
         startTime: DateTime(2025, 11, 20, 10, 0),
         endTime: DateTime(2025, 11, 20, 12, 0),
         completed: false,
-        repeatSettings: 'daily',
-        restrictionMode: 'custom',
+        repeatMode: TaskRepeatMode.daily,
+        restrictionMode: TaskRestrictionMode.custom,
         customRestrictedApps: ['com.facebook.katana', 'com.instagram.android'],
         customRestrictedWebsites: ['youtube.com', 'twitter.com'],
       );
@@ -254,13 +254,13 @@ void main() {
         description: 'New description',
         startTime: originalTask.startTime,
         endTime: originalTask.endTime,
-        repeatSettings: 'weekly',
+        repeatMode: TaskRepeatMode.weekly,
       );
 
       expect(updatedTask.id, originalTask.id);
       expect(updatedTask.title, 'Updated Title');
       expect(updatedTask.description, 'New description');
-      expect(updatedTask.repeatSettings, 'weekly');
+      expect(updatedTask.repeatMode, TaskRepeatMode.weekly);
     });
 
     test('updateTask should preserve unchanged fields', () {
@@ -304,10 +304,10 @@ void main() {
         title: 'No Repeat',
         startTime: DateTime.now(),
         endTime: DateTime.now().add(const Duration(hours: 1)),
-        repeatSettings: 'none',
+        repeatMode: TaskRepeatMode.none,
       );
 
-      expect(task.repeatSettings, 'none');
+      expect(task.repeatMode, TaskRepeatMode.none);
     });
 
     test('Task with "daily" repeat should have daily setting', () {
@@ -316,10 +316,10 @@ void main() {
         title: 'Daily Task',
         startTime: DateTime.now(),
         endTime: DateTime.now().add(const Duration(hours: 1)),
-        repeatSettings: 'daily',
+        repeatMode: TaskRepeatMode.daily,
       );
 
-      expect(task.repeatSettings, 'daily');
+      expect(task.repeatMode, TaskRepeatMode.daily);
     });
 
     test('Task with "weekly" repeat should have weekly setting', () {
@@ -328,10 +328,10 @@ void main() {
         title: 'Weekly Task',
         startTime: DateTime.now(),
         endTime: DateTime.now().add(const Duration(hours: 1)),
-        repeatSettings: 'weekly',
+        repeatMode: TaskRepeatMode.weekly,
       );
 
-      expect(task.repeatSettings, 'weekly');
+      expect(task.repeatMode, TaskRepeatMode.weekly);
     });
 
     test('Task with "monthly" repeat should have monthly setting', () {
@@ -340,10 +340,10 @@ void main() {
         title: 'Monthly Task',
         startTime: DateTime.now(),
         endTime: DateTime.now().add(const Duration(hours: 1)),
-        repeatSettings: 'monthly',
+        repeatMode: TaskRepeatMode.custom,
       );
 
-      expect(task.repeatSettings, 'monthly');
+      expect(task.repeatMode, TaskRepeatMode.custom);
     });
   });
 
@@ -354,10 +354,10 @@ void main() {
         title: 'Default Restrictions',
         startTime: DateTime.now(),
         endTime: DateTime.now().add(const Duration(hours: 1)),
-        restrictionMode: 'default',
+        restrictionMode: TaskRestrictionMode.defaultMode,
       );
 
-      expect(task.restrictionMode, 'default');
+      expect(task.restrictionMode, TaskRestrictionMode.defaultMode);
       expect(task.customRestrictedApps, isEmpty);
       expect(task.customRestrictedWebsites, isEmpty);
     });
@@ -368,26 +368,26 @@ void main() {
         title: 'Custom Restrictions',
         startTime: DateTime.now(),
         endTime: DateTime.now().add(const Duration(hours: 1)),
-        restrictionMode: 'custom',
+        restrictionMode: TaskRestrictionMode.custom,
         customRestrictedApps: ['com.facebook.katana', 'com.instagram.android'],
         customRestrictedWebsites: ['youtube.com'],
       );
 
-      expect(task.restrictionMode, 'custom');
+      expect(task.restrictionMode, TaskRestrictionMode.custom);
       expect(task.customRestrictedApps.length, 2);
       expect(task.customRestrictedWebsites.length, 1);
     });
 
-    test('Task with "none" restriction mode', () {
+    test('Task with default restriction mode', () {
       final task = Task(
         id: 'restrict-3',
         title: 'No Restrictions',
         startTime: DateTime.now(),
         endTime: DateTime.now().add(const Duration(hours: 1)),
-        restrictionMode: 'none',
+        restrictionMode: TaskRestrictionMode.defaultMode,
       );
 
-      expect(task.restrictionMode, 'none');
+      expect(task.restrictionMode, TaskRestrictionMode.defaultMode);
     });
   });
 
@@ -574,7 +574,7 @@ void main() {
         title: 'Many Restrictions',
         startTime: DateTime.now(),
         endTime: DateTime.now().add(const Duration(hours: 1)),
-        restrictionMode: 'custom',
+        restrictionMode: TaskRestrictionMode.custom,
         customRestrictedApps: [
           'com.facebook.katana',
           'com.instagram.android',

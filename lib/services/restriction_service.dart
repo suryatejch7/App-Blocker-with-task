@@ -94,18 +94,6 @@ class RestrictionService {
     }
   }
 
-  // Get list of installed apps
-  Future<List<Map<String, String>>> getInstalledApps() async {
-    try {
-      final List<dynamic> result =
-          await platform.invokeMethod('getInstalledApps');
-      return result.map((app) => Map<String, String>.from(app)).toList();
-    } catch (e) {
-      debugPrint('Error getting installed apps: $e');
-      return [];
-    }
-  }
-
   // Start monitoring service
   Future<void> startMonitoring() async {
     try {

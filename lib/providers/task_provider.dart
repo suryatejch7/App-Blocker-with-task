@@ -186,11 +186,11 @@ class TaskProvider extends ChangeNotifier {
     // Add task-based restrictions
     for (var task in relevantTasks) {
       debugPrint('   Task: ${task.title} (mode: ${task.restrictionMode})');
-      if (task.restrictionMode == 'default') {
+      if (task.restrictionMode == TaskRestrictionMode.defaultMode) {
         appsToRestrict.addAll(defaultRestrictedApps);
         websitesToRestrict.addAll(defaultRestrictedWebsites);
         debugPrint('   -> Using default restrictions');
-      } else if (task.restrictionMode == 'custom') {
+      } else if (task.restrictionMode == TaskRestrictionMode.custom) {
         appsToRestrict.addAll(task.customRestrictedApps);
         websitesToRestrict.addAll(task.customRestrictedWebsites);
         debugPrint(

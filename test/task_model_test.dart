@@ -11,8 +11,8 @@ void main() {
         startTime: DateTime(2025, 11, 19, 10, 0),
         endTime: DateTime(2025, 11, 19, 12, 0),
         completed: false,
-        repeatSettings: 'daily',
-        restrictionMode: 'default',
+        repeatMode: TaskRepeatMode.daily,
+        restrictionMode: TaskRestrictionMode.defaultMode,
         customRestrictedApps: ['com.example.app'],
         customRestrictedWebsites: ['example.com'],
       );
@@ -59,8 +59,8 @@ void main() {
       expect(task.startTime.year, 2025);
       expect(task.endTime.year, 2025);
       expect(task.completed, true);
-      expect(task.repeatSettings, 'weekly');
-      expect(task.restrictionMode, 'custom');
+      expect(task.repeatMode, TaskRepeatMode.weekly);
+      expect(task.restrictionMode, TaskRestrictionMode.custom);
       expect(task.customRestrictedApps, ['com.test.app']);
       expect(task.customRestrictedWebsites, ['test.com']);
       expect(task.completedAt, isNotNull);
@@ -135,8 +135,8 @@ void main() {
         startTime: DateTime(2025, 11, 20, 9, 0),
         endTime: DateTime(2025, 11, 20, 11, 0),
         completed: false,
-        repeatSettings: 'daily',
-        restrictionMode: 'custom',
+        repeatMode: TaskRepeatMode.daily,
+        restrictionMode: TaskRestrictionMode.custom,
         customRestrictedApps: ['com.facebook.katana', 'com.instagram.android'],
         customRestrictedWebsites: ['youtube.com', 'twitter.com'],
         completedAt: null,
@@ -153,7 +153,7 @@ void main() {
       expect(reconstructedTask.endTime.toIso8601String(),
           originalTask.endTime.toIso8601String());
       expect(reconstructedTask.completed, originalTask.completed);
-      expect(reconstructedTask.repeatSettings, originalTask.repeatSettings);
+      expect(reconstructedTask.repeatMode, originalTask.repeatMode);
       expect(reconstructedTask.restrictionMode, originalTask.restrictionMode);
       expect(reconstructedTask.customRestrictedApps,
           originalTask.customRestrictedApps);

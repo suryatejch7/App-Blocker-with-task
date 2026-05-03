@@ -1,13 +1,12 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.android.krama"
-    compileSdk = 36  // Required by shared_preferences_android
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -21,17 +20,24 @@ android {
 
     defaultConfig {
         applicationId = "com.android.krama"
-        minSdk = 26  // Required for NotificationChannel and modern APIs
-        targetSdk = 36  // Android 16 (API 36)
+        minSdk = 26
+        targetSdk = 36
         versionCode = 3
         versionName = "2.0.1"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("C:\\Users\\surya\\.android\\krama-release.jks")
+            storePassword = "yourpassword"
+            keyAlias = "krama"
+            keyPassword = "yourpassword"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

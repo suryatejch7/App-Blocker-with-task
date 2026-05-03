@@ -302,10 +302,6 @@ class RestrictionsProvider extends ChangeNotifier {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getInstalledApps() async {
-    return await _restrictionService.getInstalledApps();
-  }
-
   // ==================== PERMANENT BLOCKING METHODS ====================
 
   /// Adds an app to permanent block list with optimistic update.

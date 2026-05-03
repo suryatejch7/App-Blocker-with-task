@@ -4,8 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../providers/task_provider.dart';
-import '../providers/restrictions_provider.dart';
+import '../providers/apps_provider.dart';
 import '../models/task.dart';
+import '../models/task_enums.dart';
 import '../theme/app_theme.dart';
 
 class AddTaskScreen extends StatefulWidget {
@@ -24,9 +25,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
   late DateTime _startTime;
   late DateTime _endTime;
-  String _repeatSettings = 'once';
+  TaskRepeatMode _repeatMode = TaskRepeatMode.none;
   Set<String> _customRepeatDays = <String>{};
-  String _restrictionMode = 'default';
+  TaskRestrictionMode _restrictionMode = TaskRestrictionMode.defaultMode;
   List<String> _customRestrictedApps = [];
   List<String> _customRestrictedWebsites = [];
 
@@ -49,7 +50,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       _descriptionController.text = task.description ?? '';
       _startTime = task.startTime;
       _endTime = task.endTime;
-      _repeatSettings = _fromStorageRepeat(task.repeatSettings);
+      _repeatMode = task.repeatMode;
+      _customRepeatDays = task.customRepeatString
+              ?.split(',')
+              .map((e) => e.trim().toLowerCase())
+              .where((e) => _weekdayOrder.contains(e))
+              .toSet() ??
+          <String>{};
       _restrictionMode = task.restrictionMode;
       _customRestrictedApps = List.from(task.customRestrictedApps);
       _customRestrictedWebsites = List.from(task.customRestrictedWebsites);
@@ -58,34 +65,19 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       final now = DateTime.now();
       _startTime = DateTime(now.year, now.month, now.day, now.hour + 1);
       _endTime = _startTime.add(const Duration(hours: 2));
-      _repeatSettings = 'once';
+      _repeatMode = TaskRepeatMode.none;
     }
   }
 
-  String _fromStorageRepeat(String value) {
-    if (value.startsWith('custom:')) {
-      final rawDays = value.substring('custom:'.length);
-      _customRepeatDays = rawDays
-          .split(',')
-          .map((e) => e.trim().toLowerCase())
-          .where((e) => _weekdayOrder.contains(e))
-          .toSet();
-      return 'custom';
-    }
-    if (value == 'none') return 'once';
-    return value;
-  }
-
-  String _toStorageRepeat(String value) {
-    if (value == 'custom') {
-      if (_customRepeatDays.isEmpty) return 'custom';
+  String? _getCustomRepeatString() {
+    if (_repeatMode == TaskRepeatMode.custom) {
+      if (_customRepeatDays.isEmpty) return null;
       final orderedDays = _weekdayOrder
           .where((day) => _customRepeatDays.contains(day))
           .toList();
-      return 'custom:${orderedDays.join(',')}';
+      return orderedDays.join(',');
     }
-    if (value == 'once') return 'none';
-    return value;
+    return null;
   }
 
   String _weekdayLabel(String dayCode) {
@@ -110,7 +102,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   String _repeatHeaderLabel() {
-    if (_repeatSettings != 'custom') return _repeatLabel(_repeatSettings);
+    if (_repeatMode != TaskRepeatMode.custom) return _repeatLabel(_repeatMode);
     if (_customRepeatDays.isEmpty) return 'Custom';
     return 'Custom (${_customRepeatDays.length})';
   }
@@ -176,15 +168,15 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
   }
 
-  String _repeatLabel(String value) {
+  String _repeatLabel(TaskRepeatMode value) {
     switch (value) {
-      case 'daily':
+      case TaskRepeatMode.daily:
         return 'Daily';
-      case 'weekly':
+      case TaskRepeatMode.weekly:
         return 'Weekly';
-      case 'custom':
+      case TaskRepeatMode.custom:
         return 'Custom';
-      case 'once':
+      case TaskRepeatMode.none:
       default:
         return 'Once';
     }
@@ -231,8 +223,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Future<void> _selectCustomApps() async {
-    final restrictionsProvider =
-        Provider.of<RestrictionsProvider>(context, listen: false);
+    final appsProvider =
+        Provider.of<AppsProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -243,7 +235,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
 
     try {
-      final installedApps = await restrictionsProvider.getInstalledApps();
+      final installedApps = await appsProvider.getInstalledApps();
       if (!mounted) return;
 
       Navigator.pop(context); // close loading
@@ -393,7 +385,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         startTime: _startTime,
         endTime: _endTime,
         completed: widget.existingTask?.completed ?? false,
-        repeatSettings: _toStorageRepeat(_repeatSettings),
+        repeatMode: _repeatMode,
+        customRepeatString: _getCustomRepeatString(),
         restrictionMode: _restrictionMode,
         customRestrictedApps: _customRestrictedApps,
         customRestrictedWebsites: _customRestrictedWebsites,
@@ -547,28 +540,28 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       icon: Icons.schedule,
                       iconColor: accentColor,
                       title: 'Schedule',
-                      headerAction: PopupMenuButton<String>(
+                      headerAction: PopupMenuButton<TaskRepeatMode>(
                         tooltip: 'Repeat options',
-                        initialValue: _repeatSettings,
+                        initialValue: _repeatMode,
                         onSelected: (value) async {
-                          if (value == 'custom') {
+                          if (value == TaskRepeatMode.custom) {
                             final picked = await _showCustomRepeatDialog();
                             if (!mounted) return;
                             if (picked != null && picked.isNotEmpty) {
                               setState(() {
-                                _repeatSettings = 'custom';
+                                _repeatMode = TaskRepeatMode.custom;
                                 _customRepeatDays = picked;
                               });
                             }
                             return;
                           }
-                          setState(() => _repeatSettings = value);
+                          setState(() => _repeatMode = value);
                         },
                         itemBuilder: (context) => const [
-                          PopupMenuItem(value: 'once', child: Text('Once')),
-                          PopupMenuItem(value: 'daily', child: Text('Daily')),
-                          PopupMenuItem(value: 'weekly', child: Text('Weekly')),
-                          PopupMenuItem(value: 'custom', child: Text('Custom')),
+                          PopupMenuItem(value: TaskRepeatMode.none, child: Text('Once')),
+                          PopupMenuItem(value: TaskRepeatMode.daily, child: Text('Daily')),
+                          PopupMenuItem(value: TaskRepeatMode.weekly, child: Text('Weekly')),
+                          PopupMenuItem(value: TaskRepeatMode.custom, child: Text('Custom')),
                         ],
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -638,9 +631,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                               ),
                             ],
                           ),
-                          if (_repeatSettings == 'custom')
+                          if (_repeatMode == TaskRepeatMode.custom)
                             const SizedBox(height: 8),
-                          if (_repeatSettings == 'custom')
+                          if (_repeatMode == TaskRepeatMode.custom)
                             Wrap(
                               spacing: 6,
                               runSpacing: 6,
@@ -692,7 +685,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                             children: [
                               Expanded(
                                 child: _buildRestrictionToggle(
-                                  'default',
+                                  TaskRestrictionMode.defaultMode,
                                   'Default List',
                                   Icons.list_alt,
                                   'Use your preset blocked apps',
@@ -705,7 +698,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _buildRestrictionToggle(
-                                  'custom',
+                                  TaskRestrictionMode.custom,
                                   'Custom',
                                   Icons.tune,
                                   'Choose specific apps',
@@ -719,7 +712,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                           ),
 
                           // Custom apps/websites selection
-                          if (_restrictionMode == 'custom') ...[
+                          if (_restrictionMode == TaskRestrictionMode.custom) ...[
                             const SizedBox(height: 20),
                             _buildCustomRestrictionSection(
                               context,
@@ -1014,7 +1007,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Widget _buildRestrictionToggle(
-    String value,
+    TaskRestrictionMode value,
     String label,
     IconData icon,
     String description,

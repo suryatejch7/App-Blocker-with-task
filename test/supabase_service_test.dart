@@ -13,8 +13,8 @@ void main() {
         startTime: DateTime(2025, 11, 20, 10, 0),
         endTime: DateTime(2025, 11, 20, 12, 0),
         completed: false,
-        repeatSettings: 'daily',
-        restrictionMode: 'custom',
+        repeatMode: TaskRepeatMode.daily,
+        restrictionMode: TaskRestrictionMode.custom,
         customRestrictedApps: ['com.example.app'],
         customRestrictedWebsites: ['example.com'],
       );
@@ -23,7 +23,7 @@ void main() {
       expect(task.title, 'Test Task');
       expect(task.description, 'Test Description');
       expect(task.completed, false);
-      expect(task.repeatSettings, 'daily');
+      expect(task.repeatMode, TaskRepeatMode.daily);
     });
 
     test('Task.toJson() should return a Map with expected fields', () {
@@ -34,8 +34,8 @@ void main() {
         startTime: DateTime(2025, 11, 20, 10, 0),
         endTime: DateTime(2025, 11, 20, 12, 0),
         completed: false,
-        repeatSettings: 'once',
-        restrictionMode: 'default',
+        repeatMode: TaskRepeatMode.none,
+        restrictionMode: TaskRestrictionMode.defaultMode,
         customRestrictedApps: [],
         customRestrictedWebsites: [],
       );
@@ -57,8 +57,8 @@ void main() {
         startTime: DateTime(2025, 11, 20, 10, 0),
         endTime: DateTime(2025, 11, 20, 12, 0),
         completed: false,
-        repeatSettings: 'weekly',
-        restrictionMode: 'default',
+        repeatMode: TaskRepeatMode.weekly,
+        restrictionMode: TaskRestrictionMode.defaultMode,
         customRestrictedApps: [],
         customRestrictedWebsites: [],
       );

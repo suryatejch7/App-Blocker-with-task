@@ -31,55 +31,73 @@ class HomeWidgetService {
   /// Initialize the home widget service
   Future<void> initialize() async {
     try {
-      // Set app group ID for data sharing (required for iOS, good practice for Android)
       await HomeWidget.setAppGroupId(_appGroupId);
-
-      // Register callback for widget interactions
       HomeWidget.registerInteractivityCallback(backgroundCallback);
-
       debugPrint('✅ HomeWidgetService initialized');
     } catch (e) {
       debugPrint('❌ HomeWidgetService initialization error: $e');
     }
   }
 
-  /// Update widget with current task list
-  /// Call this whenever tasks are added, updated, or removed
+  /// Update widget with current task list.
+  ///
+  /// Shows two groups in order:
+  ///   1. Overdue / past-deadline tasks (any day), sorted by deadline ascending.
+  ///   2. Today's pending + completed tasks, sorted by deadline ascending.
+  ///
+  /// Completed tasks that are NOT overdue and NOT from today are omitted —
+  /// they're done and gone, no need to clutter the widget.
   Future<bool> updateWidgetWithTasks(List<Task> tasks) async {
     try {
       await HomeWidget.setAppGroupId(_appGroupId);
       final isDarkMode = await _readIsDarkTheme();
 
-      // Filter strictly to today's tasks and sort by deadline
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
+      // ── Group 1: overdue tasks (past deadline, not yet completed) ──────────
+      // These can be from any previous day (or even today if deadline already
+      // passed). Sort by endTime ascending so the most-overdue appears first.
+      final overdueTasks = tasks
+          .where((t) => t.isOverdue && !t.completed)
+          .toList()
+        ..sort((a, b) => a.endTime.compareTo(b.endTime));
+
+      // ── Group 2: today's tasks (excluding already-included overdue ones) ────
+      // Include both pending and completed tasks scheduled for today.
       final todayTasks = tasks.where((task) {
         final taskDate = DateTime(
           task.startTime.year,
           task.startTime.month,
           task.startTime.day,
         );
+        // Already shown above if overdue.
+        if (task.isOverdue && !task.completed) return false;
         return taskDate.isAtSameMomentAs(today);
       }).toList()
         ..sort((a, b) => a.endTime.compareTo(b.endTime));
 
-      // Serialize tasks for widget
-      final tasksJson = todayTasks
+      // ── Merge: overdue first, then today ────────────────────────────────────
+      final widgetTasks = [...overdueTasks, ...todayTasks];
+
+      debugPrint(
+          '📊 HomeWidgetService: ${overdueTasks.length} overdue + ${todayTasks.length} today = ${widgetTasks.length} total');
+
+      // Serialize for widget
+      final tasksJson = widgetTasks
           .map((task) => <String, dynamic>{
                 'id': task.id,
                 'title': task.title,
                 'description': task.description,
                 'startTime': _formatTime(task.startTime),
                 'endTime': _formatTime(task.endTime),
-                'deadlineText': _formatTime(task.endTime),
+                'deadlineText': _formatDeadlineText(task, today),
                 'completed': task.completed,
                 'isOverdue': task.isOverdue,
                 'isActive': task.isActive,
               })
           .toList();
 
-      // Save data to shared preferences for widget access
       await HomeWidget.saveWidgetData<String>(
         _keyTasks,
         jsonEncode(tasksJson),
@@ -87,11 +105,11 @@ class HomeWidgetService {
 
       await HomeWidget.saveWidgetData<int>(
         _keyTaskCount,
-        todayTasks.length,
+        widgetTasks.length,
       );
 
-      // Save next upcoming task info for small widget
-      final nextTask = _getNextUpcomingTask(todayTasks);
+      // Save next upcoming task info (overdue takes priority)
+      final nextTask = _getNextUpcomingTask(widgetTasks);
       if (nextTask != null) {
         await HomeWidget.saveWidgetData<String>(
           _keyNextTask,
@@ -114,20 +132,54 @@ class HomeWidgetService {
 
       await HomeWidget.saveWidgetData<bool>(_keyWidgetIsDark, isDarkMode);
 
-      // Trigger widget update
       await HomeWidget.updateWidget(
         androidName: _androidWidgetName,
         qualifiedAndroidName: 'com.android.krama.$_androidWidgetName',
       );
 
       debugPrint(
-          '✅ HomeWidgetService: Widget updated with ${todayTasks.length} tasks');
+          '✅ HomeWidgetService: Widget updated with ${widgetTasks.length} tasks');
       return true;
     } catch (e, stackTrace) {
       debugPrint('❌ HomeWidgetService: Error updating widget: $e');
       debugPrint('📍 Stack trace: $stackTrace');
       return false;
     }
+  }
+
+  /// Produces a deadline label that includes the date for overdue tasks
+  /// so the user can see at a glance how far past they are.
+  ///
+  /// Examples:
+  ///   - Overdue from yesterday  → "Apr 9 · 11:00 PM"
+  ///   - Overdue from today      → "11:00 PM (overdue)"
+  ///   - Normal today task       → "11:00 PM"
+  String _formatDeadlineText(Task task, DateTime today) {
+    final taskDay = DateTime(
+      task.endTime.year,
+      task.endTime.month,
+      task.endTime.day,
+    );
+    final isFromPreviousDay = taskDay.isBefore(today);
+
+    if (task.isOverdue && !task.completed) {
+      if (isFromPreviousDay) {
+        // Show date so user knows how old the overdue task is.
+        final month = _monthAbbr(task.endTime.month);
+        return '$month ${task.endTime.day} · ${_formatTime(task.endTime)}';
+      } else {
+        return '${_formatTime(task.endTime)} (overdue)';
+      }
+    }
+    return _formatTime(task.endTime);
+  }
+
+  String _monthAbbr(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return months[month - 1];
   }
 
   /// Update only the widget theme without changing task data.
@@ -148,34 +200,25 @@ class HomeWidgetService {
     }
   }
 
-  /// Get the next upcoming (not completed, not started yet or currently active) task
+  /// Priority order: overdue → active → upcoming
   Task? _getNextUpcomingTask(List<Task> tasks) {
     final now = DateTime.now();
 
-    // First, look for overdue tasks
     final overdueTasks =
         tasks.where((t) => t.isOverdue && !t.completed).toList();
-    if (overdueTasks.isNotEmpty) {
-      return overdueTasks.first;
-    }
+    if (overdueTasks.isNotEmpty) return overdueTasks.first;
 
-    // Then, look for currently active tasks
     final activeTasks = tasks.where((t) => t.isActive && !t.completed).toList();
-    if (activeTasks.isNotEmpty) {
-      return activeTasks.first;
-    }
+    if (activeTasks.isNotEmpty) return activeTasks.first;
 
-    // Finally, look for upcoming tasks
     final upcomingTasks =
         tasks.where((t) => !t.completed && t.startTime.isAfter(now)).toList();
-    if (upcomingTasks.isNotEmpty) {
-      return upcomingTasks.first;
-    }
+    if (upcomingTasks.isNotEmpty) return upcomingTasks.first;
 
     return null;
   }
 
-  /// Format time for display in widget
+  /// Format time for display in widget  (e.g. "9:05 AM")
   String _formatTime(DateTime time) {
     final hour = time.hour;
     final minute = time.minute.toString().padLeft(2, '0');
@@ -247,8 +290,9 @@ Future<void> backgroundCallback(Uri? uri) async {
   try {
     final prefs = await SharedPreferences.getInstance();
 
-    // CRITICAL: Reload to clear memory cache, otherwise it will revive already processed events
-    // that the foreground isolate deleted, leading to stale events toggling tasks backward!
+    // CRITICAL: Reload to clear memory cache, otherwise it will revive already
+    // processed events that the foreground isolate deleted, leading to stale
+    // events toggling tasks backward!
     await prefs.reload();
 
     final pendingEvents =

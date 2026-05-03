@@ -4,11 +4,13 @@ import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../providers/apps_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/restrictions_provider.dart';
 import '../models/task.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive.dart';
+import '../services/toast_service.dart';
 
 class HomeTabs extends StatefulWidget {
   const HomeTabs({super.key});
@@ -540,7 +542,20 @@ class _TaskCard extends StatelessWidget {
         : (isDark ? AppTheme.lightGray : AppTheme.lightBorder);
     final borderWidth = isOverdue ? 1.6 : 1.0;
 
-    final hasBottomChips = task.repeatSettings != 'none';
+    final hasBottomChips = task.repeatMode != TaskRepeatMode.none;
+    final repeatLabel = () {
+      switch (task.repeatMode) {
+        case TaskRepeatMode.daily:
+          return 'Daily';
+        case TaskRepeatMode.weekly:
+          return 'Weekly';
+        case TaskRepeatMode.custom:
+          final days = task.customRepeatString;
+          return (days == null || days.isEmpty) ? 'Custom' : 'Custom ($days)';
+        case TaskRepeatMode.none:
+          return 'Once';
+      }
+    }();
 
     return Opacity(
         opacity: task.completed ? 0.5 : 1.0,
@@ -642,9 +657,10 @@ class _TaskCard extends StatelessWidget {
                         ),
                       ),
                       _TaskChip(
-                        label: task.restrictionMode == 'default'
-                            ? 'Default'
-                            : 'Custom',
+                        label:
+                            task.restrictionMode == TaskRestrictionMode.defaultMode
+                                ? 'Default'
+                                : 'Custom',
                         color: AppTheme.blue,
                         icon: Icons.lock,
                       ),
@@ -665,9 +681,9 @@ class _TaskCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        if (task.repeatSettings != 'none')
+                        if (task.repeatMode != TaskRepeatMode.none)
                           _TaskChip(
-                            label: task.repeatSettings,
+                            label: repeatLabel,
                             color: accentColor,
                             icon: Icons.repeat,
                           ),
@@ -798,66 +814,11 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
   int _selectedIndex = 0;
   // false = Default (task-based), true = Permanent (always blocked)
   bool _showPermanent = false;
-  final List<_OverlayToastItem> _activeToasts = [];
 
   @override
   void dispose() {
-    for (final toast in _activeToasts) {
-      toast.entry.remove();
-      toast.timer.cancel();
-    }
-    _activeToasts.clear();
+    ToastService.dispose();
     super.dispose();
-  }
-
-  void _repositionToasts() {
-    for (final toast in _activeToasts) {
-      toast.entry.markNeedsBuild();
-    }
-  }
-
-  void _showTopRightToast(
-    String message, {
-    Color? backgroundColor,
-    Duration duration = const Duration(seconds: 3),
-  }) {
-    final overlay = Overlay.of(context, rootOverlay: true);
-
-    final toastId = DateTime.now().microsecondsSinceEpoch.toString();
-    late final OverlayEntry entry;
-
-    entry = OverlayEntry(
-      builder: (overlayContext) {
-        final index = _activeToasts.indexWhere((t) => t.id == toastId);
-        final safeTop = MediaQuery.of(overlayContext).padding.top;
-        final y = safeTop + 12 + ((index < 0 ? 0 : index) * 40.0);
-
-        return Positioned(
-          top: y,
-          right: 12,
-          child: IgnorePointer(
-            child: _PillToast(
-              message: message,
-              backgroundColor: backgroundColor ?? AppTheme.blue,
-            ),
-          ),
-        );
-      },
-    );
-
-    final timer = Timer(duration, () {
-      final i = _activeToasts.indexWhere((t) => t.id == toastId);
-      if (i >= 0) {
-        _activeToasts[i].entry.remove();
-        _activeToasts.removeAt(i);
-        _repositionToasts();
-      }
-    });
-
-    _activeToasts
-        .add(_OverlayToastItem(id: toastId, entry: entry, timer: timer));
-    overlay.insert(entry);
-    _repositionToasts();
   }
 
   @override
@@ -1139,6 +1100,7 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
 
   Future<void> _showAddAppsDialog(
       RestrictionsProvider provider, bool isPermanent) async {
+    final appsProvider = Provider.of<AppsProvider>(context, listen: false);
     final ctx = context;
     showDialog(
       context: ctx,
@@ -1149,7 +1111,7 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
     );
 
     try {
-      final installedApps = await provider.getInstalledApps();
+      final installedApps = await appsProvider.getInstalledApps();
       if (!mounted) return;
 
       Navigator.of(ctx).pop(); // close loading
@@ -1188,7 +1150,8 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
           }
         }
         if (!mounted) return;
-        _showTopRightToast(
+        ToastService.showToast(
+          context,
           isPermanent
               ? 'Permanently blocked ${selectedApps.length} app(s)'
               : 'Added ${selectedApps.length} app(s)',
@@ -1198,7 +1161,7 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
     } catch (e) {
       if (!mounted) return;
       Navigator.of(ctx).pop(); // close loading
-      _showTopRightToast('Error loading apps: $e', backgroundColor: Colors.red);
+      ToastService.showToast(context, 'Error loading apps: $e', backgroundColor: Colors.red);
     }
   }
 
@@ -1225,7 +1188,8 @@ class _RestrictionsTabState extends State<_RestrictionsTab> {
         provider.addWebsite(result);
       }
       if (!mounted) return;
-      _showTopRightToast(
+      ToastService.showToast(
+        context,
         isPermanent
             ? 'Permanently blocked ${provider.extractDomain(result)}'
             : 'Added ${provider.extractDomain(result)}',
@@ -1815,58 +1779,6 @@ class _DefaultAppSelectorDialogState extends State<_DefaultAppSelectorDialog> {
           ),
           const SizedBox(height: 8),
         ],
-      ),
-    );
-  }
-}
-
-class _OverlayToastItem {
-  final String id;
-  final OverlayEntry entry;
-  final Timer timer;
-
-  _OverlayToastItem({
-    required this.id,
-    required this.entry,
-    required this.timer,
-  });
-}
-
-class _PillToast extends StatelessWidget {
-  final String message;
-  final Color backgroundColor;
-
-  const _PillToast({required this.message, required this.backgroundColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.72,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(999),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Text(
-          message,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ),
     );
   }

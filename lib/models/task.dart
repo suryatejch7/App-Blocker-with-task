@@ -1,3 +1,7 @@
+export 'task_enums.dart';
+
+import 'task_enums.dart';
+
 class Task {
   String id;
   String title;
@@ -5,8 +9,9 @@ class Task {
   DateTime startTime;
   DateTime endTime;
   bool completed;
-  String repeatSettings; // 'none', 'daily', 'weekly', 'custom'
-  String restrictionMode; // 'default' or 'custom'
+  TaskRepeatMode repeatMode; 
+  String? customRepeatString; // to hold "mon,tue"
+  TaskRestrictionMode restrictionMode;
   List<String> customRestrictedApps;
   List<String> customRestrictedWebsites;
   DateTime? completedAt;
@@ -18,8 +23,9 @@ class Task {
     required this.startTime,
     required this.endTime,
     this.completed = false,
-    this.repeatSettings = 'none',
-    this.restrictionMode = 'default',
+    this.repeatMode = TaskRepeatMode.none,
+    this.customRepeatString,
+    this.restrictionMode = TaskRestrictionMode.defaultMode,
     this.customRestrictedApps = const [],
     this.customRestrictedWebsites = const [],
     this.completedAt,
@@ -42,6 +48,11 @@ class Task {
   }
 
   Map<String, dynamic> toJson() {
+    String repeatSettingsString = repeatMode.toJsonString();
+    if (repeatMode == TaskRepeatMode.custom && customRepeatString != null) {
+      repeatSettingsString = 'custom:$customRepeatString';
+    }
+    
     return {
       'id': id,
       'title': title,
@@ -51,8 +62,8 @@ class Task {
       'start_time': startTime.toUtc().toIso8601String(),
       'end_time': endTime.toUtc().toIso8601String(),
       'completed': completed,
-      'repeat_settings': repeatSettings,
-      'restriction_mode': restrictionMode,
+      'repeat_settings': repeatSettingsString,
+      'restriction_mode': restrictionMode.toJsonString(),
       'custom_restricted_apps': customRestrictedApps,
       'custom_restricted_websites': customRestrictedWebsites,
       'completed_at': completedAt?.toUtc().toIso8601String(),
@@ -67,6 +78,12 @@ class Task {
     final endTimeUtc = DateTime.parse(endTimeStr);
     final startTimeLocal = startTimeUtc.toLocal();
     final endTimeLocal = endTimeUtc.toLocal();
+    
+    String rawRepeat = j['repeat_settings'] ?? j['repeatSettings'] ?? 'none';
+    String? customRepString;
+    if (rawRepeat.startsWith('custom:')) {
+      customRepString = rawRepeat.substring('custom:'.length);
+    }
 
     return Task(
       id: j['id'] as String,
@@ -76,9 +93,10 @@ class Task {
       startTime: startTimeLocal,
       endTime: endTimeLocal,
       completed: j['completed'] as bool? ?? false,
-      repeatSettings: j['repeat_settings'] ?? j['repeatSettings'] ?? 'none',
-      restrictionMode:
-          j['restriction_mode'] ?? j['restrictionMode'] ?? 'default',
+      repeatMode: TaskRepeatMode.fromString(rawRepeat),
+      customRepeatString: customRepString,
+      restrictionMode: TaskRestrictionMode.fromString(
+          j['restriction_mode'] ?? j['restrictionMode'] ?? 'default'),
       customRestrictedApps: List<String>.from(
           j['custom_restricted_apps'] ?? j['customRestrictedApps'] ?? []),
       customRestrictedWebsites: List<String>.from(

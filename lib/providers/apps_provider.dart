@@ -2,14 +2,20 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_entry.dart';
+import '../services/apps_service.dart';
 
 class AppsProvider extends ChangeNotifier {
   List<AppEntry> _apps = [];
+  final AppsService _appsService = AppsService();
 
   List<AppEntry> get apps => _apps;
 
   AppsProvider() {
     _load();
+  }
+
+  Future<List<Map<String, dynamic>>> getInstalledApps() async {
+    return await _appsService.getInstalledApps();
   }
 
   Future<void> _load() async {
